@@ -234,6 +234,13 @@ public partial class MainWindow : Window, IShellController
         HideInFullscreenItem.IsChecked = _settings.HideInFullscreen;
         HideWhenIdleItem.IsChecked = _settings.HideWhenIdle;
         AnnounceItem.IsChecked = _settings.AnnounceActivity;
+        OsdItem.IsChecked = _settings.ShowOsd;
+    }
+
+    private void OnOsdClick(object sender, RoutedEventArgs e)
+    {
+        _settings.ShowOsd = OsdItem.IsChecked;
+        _settings.Save();
     }
 
     private void OnAnnounceClick(object sender, RoutedEventArgs e)
@@ -522,9 +529,7 @@ public partial class MainWindow : Window, IShellController
         _hideTimer.Stop();
         if (_expanded || _peeking) return;
 
-        // 切歌提示中滑鼠移上來 → 直接變成預覽(畫面相同,不用再動畫)
-        _announceTimer.Stop();
-        _announcing = false;
+        // 提示中滑鼠移上來 → 變成預覽;提示的內容先保留到提示時間結束
         _peeking = true;
         if (CollapsedLayer.Opacity < 1) SetOpacity(CollapsedLayer, 1);
         Fade(Capsule, 1, TimeSpan.FromMilliseconds(140));
@@ -597,20 +602,29 @@ public partial class MainWindow : Window, IShellController
 
     void IShellController.Announce(string moduleId, TimeSpan duration)
     {
-        if (!_settings.AnnounceActivity || _expanded || _peeking || !IsVisible) return;
+        if (_expanded || !IsVisible) return;
+        // 右鍵選單的開關:「切歌時顯示」只管音樂,「音量亮度提示」只管提示模組
+        if (!_settings.AnnounceActivity && moduleId == "media") return;
+        if (!_settings.ShowOsd && moduleId == "osd") return;
         var module = _modules.FirstOrDefault(m => string.Equals(m.Id, moduleId, StringComparison.OrdinalIgnoreCase));
         if (module is not IIslandActivity) return;
 
         _announcing = true;
         _announced = module;
+        _announceTimer.Stop();
+        _announceTimer.Interval = duration;
+        _announceTimer.Start();
+        if (_peeking)
+        {
+            // 滑鼠正停在島上:不用重新出現,直接把內容換成提示,時間到再換回來
+            UpdateCollapsedLayers();
+            return;
+        }
         if (CollapsedLayer.Opacity < 1) SetOpacity(CollapsedLayer, 1);
         _hideTimer.Stop();
         Fade(Capsule, 1, TimeSpan.FromMilliseconds(160));
         AnimateSize(_peekSize, PeekDuration, new CubicEase { EasingMode = EasingMode.EaseOut });
         UpdateCollapsedLayers();
-        _announceTimer.Stop();
-        _announceTimer.Interval = duration;
-        _announceTimer.Start();
     }
 
     private IIslandModule? _announced;
@@ -620,7 +634,12 @@ public partial class MainWindow : Window, IShellController
         _announceTimer.Stop();
         if (!_announcing) return;
         _announcing = false;
-        if (_expanded || _peeking || IsCursorOverCapsule()) return;
+        if (_peeking)
+        {
+            UpdateCollapsedLayers();   // 換回預覽的內容
+            return;
+        }
+        if (_expanded || IsCursorOverCapsule()) return;
         GoIdle();
     }
 

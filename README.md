@@ -15,6 +15,7 @@
 | 左鍵點一下 | **固定展開**成 380×170,上方有模組分頁(時間/計時/播放/Shelf)。正在播放時直接打開「播放」分頁。滑鼠移開也不會收。 |
 | 計時分頁 | **計時器**:選 1/3/5/10/15/30/60 分(或在大時間上滾輪 ±1 分,執行中也能加減)→ 開始/暫停/重設。**番茄鐘**:專注 25 分 → 自動開始休息 5 分(每 4 輪休息 15 分)→ 休息結束提醒,按開始進入下一輪;可跳過這一段,4 個圓點顯示這組完成幾輪。 |
 | 計時中 | 膠囊照常隱藏;滑鼠移到上緣顯示「碼錶 剩餘時間 狀態」(計時優先於音樂)。**時間到**時膠囊跳出「時間到」約 6 秒並播放提示音(Windows Notify Calendar),之後 30 秒內滑鼠移過去仍會看到,點一下打開計時分頁。 |
+| 按音量鍵 / 調亮度 | 膠囊從上緣出現約 1.5 秒:**喇叭(或太陽)圖示 + 長條 + 數字**,連按會延長、長條即時跟著動;靜音顯示「靜音」。音量是任何方式改變系統音量都會顯示(鍵盤、工作列、其他程式);亮度只支援由 Windows 控制亮度的螢幕(筆電內建螢幕),外接螢幕用自己按鈕調的亮度 Windows 不知道。滑鼠停在島上時也會短暫換成提示。右鍵「音量亮度提示」可關掉。Windows 內建的提示框目前**無法隱藏**(這個 Windows 11 版本的提示框不是獨立視窗,沒有穩定的方法)。 |
 | 播放分頁 | 封面、歌名、歌手、來源(Chrome、Spotify…)、進度條、上一首/播放暫停/下一首,以及**系統音量**滑桿(可拖曳、點擊跳到該位置、滾輪 ±2;左邊喇叭圖示切換靜音;用鍵盤音量鍵調整時滑桿會跟著動)。沒有播放時顯示「目前沒有正在播放的媒體」。 |
 | 固定展開時點島以外的任何地方 | 收合(回到隱藏)。點島裡面(分頁、檔案)不會收。 |
 | 把檔案拖到螢幕上緣中間或膠囊上 | 自動展開並切到 Shelf,邊框亮起;放開即加入。拖曳造成的展開不固定,滑鼠離開約 0.7 秒後收合。 |
@@ -23,7 +24,7 @@
 | Shelf:雙擊檔案 | 用預設程式開啟 |
 | Shelf:右鍵檔案 | 開啟/在檔案總管中顯示/從 Shelf 移除 |
 | Shelf:「全部清除」 | 清空清單(不會刪除檔案) |
-| 右鍵膠囊 | 開機時啟動/全螢幕時隱藏/閒置時隱藏/切歌時顯示(都是勾選切換)/結束 |
+| 右鍵膠囊 | 開機時啟動/全螢幕時隱藏/閒置時隱藏/切歌時顯示/音量亮度提示(都是開關)/結束 |
 | 主螢幕上有全螢幕程式 | 膠囊自動隱藏(影片、遊戲、簡報、瀏覽器 F11、無邊框最大化的播放器);離開全螢幕或切到別的視窗就回來。只看膠囊所在的螢幕,另一個螢幕全螢幕不影響。 |
 
 Shelf 只記住檔案**路徑**,不會複製檔案。清單存在 `%LOCALAPPDATA%\Island\modules\shelf\shelf.json`,重新啟動後保留;已經不存在的檔案會在展開時自動移除。收合時膠囊右側顯示「Shelf N」。
@@ -75,7 +76,8 @@ dotnet publish src\Island.App -c Release -r win-x64 --self-contained false -o pu
   "hideInFullscreen": true,
   "softwareRendering": true,
   "announceActivity": true,
-  "modules": ["clock", "timer", "media", "shelf"],
+  "showOsd": true,
+  "modules": ["clock", "timer", "media", "shelf", "osd"],
   "disabledModules": []
 }
 ```
@@ -88,6 +90,7 @@ dotnet publish src\Island.App -c Release -r win-x64 --self-contained false -o pu
 | `peekWidth` | 滑鼠移過去時變寬到多少(一排字,高度同收合) |
 | `expandedWidth` / `expandedHeight` | 點擊展開後的大小(NUSA 展開約 400×175) |
 | `hideWhenIdle` | `true` = 平常完全隱藏,滑鼠推到螢幕上緣中間才出現;`false` = 平常顯示小膠囊。右鍵選單「閒置時隱藏」會直接改這個值,立即生效。 |
+| `showOsd` | 調音量 / 亮度時顯示提示。右鍵「音量亮度提示」會直接改這個值。 |
 | `announceActivity` | 換歌時讓膠囊出現約 3 秒。右鍵「切歌時顯示」會直接改這個值。 |
 | `hideInFullscreen` | 膠囊所在螢幕有全螢幕程式時自動隱藏。右鍵選單的「全螢幕時隱藏」會直接改這個值,立即生效。 |
 | `softwareRendering` | `true` = 軟體算圖,不建立 Direct3D 裝置,記憶體約省一半(見下方數據)。之後展開動畫若不順可改成 `false`。 |
@@ -132,6 +135,11 @@ src/
       TimerModule.cs             計時器 / 番茄鐘狀態機(以結束時刻計算剩餘,睡眠喚醒不累積誤差)
       TimerView.xaml(.cs)        計時分頁:模式、大時間 + 進度、開始/重設/跳過、預設時間或輪數
       TimerActivityView.cs       計時中的一排(預覽、時間到提示)
+    Island.Modules.Osd/
+      OsdModule.cs               音量 / 亮度提示(沒有展開畫面,只用 Announce)
+      OsdView.cs                 圖示 + 長條 + 數字
+      AudioWatcher.cs            IAudioEndpointVolume 變更通知 + IMMNotificationClient(預設裝置切換時重新掛上)
+      BrightnessWatcher.cs       WMI WmiMonitorBrightnessEvent(System.Management)
     Island.Modules.Media/
       MediaModule.cs             系統全域媒體控制(GlobalSystemMediaTransportControlsSessionManager):選工作階段、讀取資訊、控制
       MediaView.xaml(.cs)        播放分頁:封面、歌名、進度、控制按鈕
@@ -208,6 +216,7 @@ public sealed class XxxModule : IslandModuleBase
 | 閒置隱藏 + 熱區 | 視窗貼齊螢幕頂端,膠囊用 Margin 往下 `topOffset`。閒置時膠囊 Opacity = 0(像素 alpha 0,系統直接讓滑鼠穿透);熱區是 alpha 1/255 的細條,看不見但收得到滑鼠與拖放。熱區與膠囊包在同一個 Grid 裡,滑鼠進出只看這個 Grid。 |
 | 點外面收合 | 不取得焦點的視窗收不到失焦事件,所以只在「固定展開」期間掛 `WH_MOUSE_LL`,收合時立刻卸下。掛勾裡只用 `WindowFromPoint` 判斷點到的視窗是不是本程式(膠囊、右鍵選單都算裡面),收合排到 UI 執行緒稍後執行。 |
 | 正在播放 | `GlobalSystemMediaTransportControlsSessionManager`,和 Windows 音量提示框的媒體卡片是同一套,所以有接系統媒體控制的程式都支援。訂閱所有工作階段的播放狀態/歌曲資訊事件,優先顯示「正在播放」的那個;事件 60 ms 去抖動後才重新讀取。瀏覽器播放時約每 4～5 秒送一次時間軸更新,收合時直接忽略,展開時才讀;進度條只在展開於播放分頁且正在播放時每秒更新。封面以 160 px 解碼並凍結。換歌判斷:來源 + 標題 + 歌手改變且正在播放 → `IIslandHost.Announce(3 秒)`,啟動時讀到的第一首不算。音量只在展開時開啟 Core Audio 端點並註冊通知(每次重新取得預設裝置),收合即釋放;自己設定時帶固定的 event context GUID,收到通知時用它忽略自己造成的變更。 |
+| 音量 / 亮度提示 | 全部事件驅動:Core Audio 音量通知、預設裝置切換通知、WMI 亮度事件。音量與靜音都沒變的通知(聲道平衡等)忽略。`Announce` 在滑鼠停在島上(預覽)時也有效:內容暫時換成提示,時間到換回預覽。 |
 | 計時器 | 只在執行中有 1 秒的 DispatcherTimer。每秒只更新「看得到」的畫面:膠囊完全淡出後外殼把它設為 Hidden(WPF 不再算圖),模組用 `IsVisible` 判斷,畫面重新出現時(IsVisibleChanged)補更新。時間到用 `IIslandHost.Announce`。 |
 | 強調色 | 主題筆刷放在 Application.Resources,所有用到的地方是 DynamicResource。放進資源字典的筆刷會被 WPF 凍結、不能做 ColorAnimation,所以換色時用計時器分 12 步、每步放一支新的凍結筆刷(只在換歌時跑)。模組透過 `IIslandHost.SetAccent(Color?)` 設定。 |
 | 開機啟動 | `HKCU\...\Run`,值為 `"Island.exe 完整路徑"`。 |
@@ -333,6 +342,16 @@ dotnet-counters monitor -n Island --counters System.Runtime
 |---|---|---|
 | 計時中、膠囊隱藏(只更新看得到的畫面) | **63 ms / 60 s** | 46.0 MB |
 | 計時中、膠囊隱藏(第一版:隱藏時也每秒更新) | 281 ms / 60 s | 43.7 MB |
+
+## 音量 / 亮度提示驗收(實機)
+
+| 項目 | 結果 |
+|---|---|
+| 監看啟動 | ✅ log:音量監看啟用、亮度監看啟用(筆電內建螢幕) |
+| 按音量鍵 | ✅ 膠囊出現「喇叭 ━━━ 10」,約 2 秒後隱藏、位置點得穿 |
+| 按靜音鍵 | ✅ 顯示靜音圖示與「靜音」,長條變暗 |
+| 亮度 50 → 51 | ✅ 顯示「太陽 ━━━ 51」 |
+| 閒置 60 秒 | 47 ms CPU、41.5 MB、12 執行緒 |
 
 ## 計時器驗收(實機)
 

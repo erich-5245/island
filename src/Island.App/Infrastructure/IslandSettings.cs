@@ -40,6 +40,9 @@ internal sealed class IslandSettings
     /// </summary>
     public bool AnnounceActivity { get; set; } = true;
 
+    /// <summary>調音量 / 亮度時膠囊出現約 1.5 秒顯示長條。右鍵選單「音量亮度提示」可切換。</summary>
+    public bool ShowOsd { get; set; } = true;
+
     /// <summary>島所在的螢幕有全螢幕程式(影片、遊戲、簡報)時自動隱藏。右鍵選單可切換。</summary>
     public bool HideInFullscreen { get; set; } = true;
 
@@ -50,7 +53,7 @@ internal sealed class IslandSettings
     public bool SoftwareRendering { get; set; } = true;
 
     /// <summary>模組排列順序。沒列出但有找到的模組會排在後面。</summary>
-    public List<string> Modules { get; set; } = ["clock", "timer", "media", "shelf"];
+    public List<string> Modules { get; set; } = ["clock", "timer", "media", "shelf", "osd"];
 
     /// <summary>要停用的模組 Id。</summary>
     public List<string> DisabledModules { get; set; } = [];

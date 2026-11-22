@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RootNamespace>Island.Modules.Osd</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- WMI:WmiMonitorBrightnessEvent(筆電內建螢幕的亮度變更通知) -->
+    <PackageReference Include="System.Management" Version="10.0.0" />
+  </ItemGroup>
+
+</Project>
