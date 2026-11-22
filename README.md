@@ -40,7 +40,7 @@ Shelf 只記住檔案**路徑**,不會複製檔案。清單存在 `%LOCALAPPDATA
 俯瞰的環礁:深藍色的海上,一圈金色沙灘圍成**膠囊形狀**的潟湖(也就是 Island 本身的形狀),沙灘上有椰子樹、潟湖裡有一艘小船。32 px 以下另外畫簡化版(只留海、金色膠囊和一棵椰子樹),工作列上才不會糊掉。
 
 - 圖示檔:`src/Island.App/Assets/Island.ico`(16、20、24、32、40、48、64、96、128、256 px,PNG 壓縮),同時是 exe 圖示和設定視窗的圖示。
-- 原始碼:`tools/app-icon/AtollIcons.cs`(用 System.Drawing 畫,另外保留黑金、霧青兩組配色);重新產生:`powershell -ExecutionPolicy Bypass -File toolspp-icon\make-icon.ps1`。
+- 原始碼:`tools/app-icon/AtollIcons.cs`(用 System.Drawing 畫,另外保留黑金、霧青兩組配色);重新產生:`powershell -ExecutionPolicy Bypass -File tools\app-icon\make-icon.ps1`。
 
 ## 外觀
 

@@ -1,6 +1,6 @@
 # Generate src/Island.App/Assets/Island.ico (and a 512 px preview PNG) from AtollIcons.cs.
 # Every size is drawn separately (32 px and below use a simplified drawing) and stored as PNG inside the .ico.
-# Usage:  powershell -ExecutionPolicy Bypass -File tools\icon\make-icon.ps1
+# Usage:  powershell -ExecutionPolicy Bypass -File tools\app-icon\make-icon.ps1
 Add-Type -AssemblyName System.Drawing
 Add-Type -Path (Join-Path $PSScriptRoot 'AtollIcons.cs') -ReferencedAssemblies System.Drawing
 $root = Resolve-Path (Join-Path $PSScriptRoot '..\..')
