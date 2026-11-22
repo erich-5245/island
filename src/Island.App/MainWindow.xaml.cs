@@ -56,6 +56,7 @@ public partial class MainWindow : Window, IShellController
     private bool _expanded;
     private bool _pinned;       // 點擊展開 = 固定;滑鼠離開也不收,點外面才收
     private bool _peeking;
+    private readonly Dictionary<IIslandModule, FrameworkElement?> _activityViews = [];
     private IIslandModule? _active;
     private int _holdCount;
     private int _outsideTicks;
@@ -197,6 +198,15 @@ public partial class MainWindow : Window, IShellController
         AutoStartItem.IsChecked = AutoStart.IsEnabled;
         HideInFullscreenItem.IsChecked = _settings.HideInFullscreen;
         HideWhenIdleItem.IsChecked = _settings.HideWhenIdle;
+        ShowActivityItem.IsChecked = _settings.ShowActivityWhenIdle;
+    }
+
+    private void OnShowActivityClick(object sender, RoutedEventArgs e)
+    {
+        _settings.ShowActivityWhenIdle = ShowActivityItem.IsChecked;
+        _settings.Save();
+        ApplyIdleMode(animate: true);
+        UpdateCollapsedLayers();
     }
 
     private void OnHideWhenIdleClick(object sender, RoutedEventArgs e)
@@ -238,6 +248,9 @@ public partial class MainWindow : Window, IShellController
 
         foreach (var m in _modules) m.BadgeChanged += (_, _) => RefreshBadges();
         RefreshBadges();
+
+        foreach (var m in _modules)
+            if (m is IIslandActivity a) a.ActivityChanged += (_, _) => OnActivityChanged();
     }
 
     private void RefreshBadges()
@@ -364,8 +377,9 @@ public partial class MainWindow : Window, IShellController
         AnimateSize(peek ? _peekSize : _collapsedSize, CollapseDuration,
             new QuarticEase { EasingMode = EasingMode.EaseOut });
         Fade(LeftSlot, peek ? 1 : 0, TimeSpan.FromMilliseconds(1));
-        if (!peek && _settings.HideWhenIdle)
+        if (!peek && !IdleVisible)
             Fade(Capsule, 0, TimeSpan.FromMilliseconds(220), TimeSpan.FromMilliseconds(60));
+        UpdateCollapsedLayers();
         Fade(ExpandedLayer, 0, TimeSpan.FromMilliseconds(110), completed: () =>
         {
             if (!_expanded) ExpandedLayer.Visibility = Visibility.Collapsed;
@@ -439,6 +453,7 @@ public partial class MainWindow : Window, IShellController
         if (_expanded || _peeking) return;
 
         _peeking = true;
+        UpdateCollapsedLayers();
         Fade(Capsule, 1, TimeSpan.FromMilliseconds(140));
         AnimateSize(_peekSize, PeekDuration, new CubicEase { EasingMode = EasingMode.EaseOut });
         Fade(LeftSlot, 1, TimeSpan.FromMilliseconds(160), TimeSpan.FromMilliseconds(60));
@@ -458,18 +473,60 @@ public partial class MainWindow : Window, IShellController
         GoIdle();
     }
 
-    /// <summary>回到閒置:縮回收合大小;「閒置時隱藏」開啟時整個淡出(只剩看不見的熱區)。</summary>
+    /// <summary>回到閒置:縮回收合大小;「閒置時隱藏」開啟且沒有活動時整個淡出(只剩看不見的熱區)。</summary>
     private void GoIdle()
     {
         _peeking = false;
         AnimateSize(_collapsedSize, PeekDuration, new CubicEase { EasingMode = EasingMode.EaseOut });
         Fade(LeftSlot, 0, TimeSpan.FromMilliseconds(90));
-        if (_settings.HideWhenIdle) Fade(Capsule, 0, TimeSpan.FromMilliseconds(200));
+        Fade(Capsule, IdleVisible ? 1 : 0, TimeSpan.FromMilliseconds(200));
+        UpdateCollapsedLayers();
+    }
+
+    // ── 活動(例如正在播放):閒置時也顯示膠囊,內容換成活動畫面 ──
+
+    /// <summary>第一個有活動的模組(依模組順序)。</summary>
+    private IIslandModule? CurrentActivity =>
+        _settings.ShowActivityWhenIdle
+            ? _modules.FirstOrDefault(m => m is IIslandActivity { IsActivityActive: true })
+            : null;
+
+    /// <summary>閒置時膠囊是否可見。</summary>
+    private bool IdleVisible => !_settings.HideWhenIdle || CurrentActivity is not null;
+
+    private void OnActivityChanged()
+    {
+        Log.Write($"活動:{CurrentActivity?.Id ?? "(無)"}");
+        if (_expanded || _peeking) return;
+        Fade(Capsule, IdleVisible ? 1 : 0, TimeSpan.FromMilliseconds(220));
+        UpdateCollapsedLayers();
+    }
+
+    /// <summary>收合層顯示「時間 + 小提示」還是「活動畫面」。預覽(一排字)時一律顯示前者。</summary>
+    private void UpdateCollapsedLayers()
+    {
+        var activity = _peeking || _expanded ? null : CurrentActivity;
+        if (activity is not null)
+        {
+            if (!_activityViews.TryGetValue(activity, out var view))
+            {
+                view = SafeCreate(activity, ((IIslandActivity)activity).CreateActivityView);
+                _activityViews[activity] = view;
+            }
+            if (view is null) activity = null;
+            else if (!ReferenceEquals(ActivitySlot.Content, view)) ActivitySlot.Content = view;
+        }
+
+        bool showActivity = activity is not null;
+        var d = TimeSpan.FromMilliseconds(160);
+        Fade(ActivitySlot, showActivity ? 1 : 0, d);
+        Fade(CenterSlot, showActivity ? 0 : 1, d);
+        Fade(BadgeStrip, showActivity ? 0 : 1, d);
     }
 
     private void ApplyIdleMode(bool animate)
     {
-        bool hidden = _settings.HideWhenIdle && !_expanded && !_peeking;
+        bool hidden = !IdleVisible && !_expanded && !_peeking;
         if (animate)
         {
             Fade(Capsule, hidden ? 0 : 1, TimeSpan.FromMilliseconds(200));
@@ -482,7 +539,9 @@ public partial class MainWindow : Window, IShellController
     private void OnCapsuleClick(object sender, MouseButtonEventArgs e)
     {
         if (_expanded && _pinned) return;   // 已固定:點裡面是在操作模組內容
-        Expand(null, pin: true);
+        // 有活動(例如正在播放)時直接展開到那個模組
+        var activity = _modules.FirstOrDefault(m => m is IIslandActivity { IsActivityActive: true });
+        Expand(activity, pin: true);
         e.Handled = true;
     }
 

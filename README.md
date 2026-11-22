@@ -1,4 +1,4 @@
-# Island — Windows 動態島
+﻿# Island — Windows 動態島
 
 獨立的 Windows 動態島程式(目標:取代 NUSA)。C# + WPF,.NET 10 LTS。
 
@@ -11,7 +11,9 @@
 |---|---|
 | 平常(閒置) | **完全隱藏**。螢幕最上緣中間留一條看不見的熱區(寬同收合膠囊、高 = topOffset + 4 DIP)。右鍵「閒置時隱藏」取消勾選 → 改成平常顯示只有時間的小膠囊。 |
 | 滑鼠推到螢幕上緣中間 / 移到膠囊上 | 出現「一排字」(320 寬):左邊日期、中間時間、右邊 Shelf 數量。滑鼠離開約 0.2 秒後再隱藏。 |
-| 左鍵點一下 | **固定展開**成 380×170,上方有模組分頁(時間/Shelf)。滑鼠移開也不會收。 |
+| 正在播放音樂/影片時 | 閒置也會顯示小膠囊:**封面 + 歌名 · 歌手**。停止或暫停約 2 秒後回到隱藏。右鍵「播放中時顯示」可關掉。 |
+| 左鍵點一下 | **固定展開**成 380×170,上方有模組分頁(時間/播放/Shelf)。正在播放時直接打開「播放」分頁。滑鼠移開也不會收。 |
+| 播放分頁 | 封面、歌名、歌手、來源(Chrome、Spotify…)、進度條、上一首/播放暫停/下一首。沒有播放時顯示「目前沒有正在播放的媒體」。 |
 | 固定展開時點島以外的任何地方 | 收合(回到隱藏)。點島裡面(分頁、檔案)不會收。 |
 | 把檔案拖到螢幕上緣中間或膠囊上 | 自動展開並切到 Shelf,邊框亮起;放開即加入。拖曳造成的展開不固定,滑鼠離開約 0.7 秒後收合。 |
 | Shelf:拖曳某個檔案 | 拖到其他程式。行為和從檔案總管拖曳一樣:同一個磁碟預設是移動,不同磁碟是複製,可按 Ctrl/Shift 切換。檔案被移走後會自動從 Shelf 移除。 |
@@ -19,7 +21,7 @@
 | Shelf:雙擊檔案 | 用預設程式開啟 |
 | Shelf:右鍵檔案 | 開啟/在檔案總管中顯示/從 Shelf 移除 |
 | Shelf:「全部清除」 | 清空清單(不會刪除檔案) |
-| 右鍵膠囊 | 開機時啟動(勾選切換)/全螢幕時隱藏(勾選切換,預設開)/結束 |
+| 右鍵膠囊 | 開機時啟動/全螢幕時隱藏/閒置時隱藏/播放中時顯示(都是勾選切換)/結束 |
 | 主螢幕上有全螢幕程式 | 膠囊自動隱藏(影片、遊戲、簡報、瀏覽器 F11、無邊框最大化的播放器);離開全螢幕或切到別的視窗就回來。只看膠囊所在的螢幕,另一個螢幕全螢幕不影響。 |
 
 Shelf 只記住檔案**路徑**,不會複製檔案。清單存在 `%LOCALAPPDATA%\Island\modules\shelf\shelf.json`,重新啟動後保留;已經不存在的檔案會在展開時自動移除。收合時膠囊右側顯示「Shelf N」。
@@ -33,7 +35,7 @@ Shelf 只記住檔案**路徑**,不會複製檔案。清單存在 `%LOCALAPPDATA
 
 ```powershell
 dotnet build Island.sln -c Release
-.\src\Island.App\bin\Release\net10.0-windows\Island.exe
+.\src\Island.App\bin\Release\net10.0-windows10.0.19041.0\Island.exe
 ```
 
 **開機時啟動**:右鍵膠囊 → 勾選「開機時啟動」。會寫入 `HKCU\Software\Microsoft\Windows\CurrentVersion\Run\Island`,只影響目前使用者、不需要系統管理員權限,登入後以一般權限啟動。記錄的是「目前這個 Island.exe」的路徑;之後如果改從別的資料夾執行(例如 publish 資料夾),啟動時會自動把路徑更新成新的位置。
@@ -64,7 +66,8 @@ dotnet publish src\Island.App -c Release -r win-x64 --self-contained false -o pu
   "hideWhenIdle": true,
   "hideInFullscreen": true,
   "softwareRendering": true,
-  "modules": ["clock", "shelf"],
+  "showActivityWhenIdle": true,
+  "modules": ["clock", "media", "shelf"],
   "disabledModules": []
 }
 ```
@@ -77,6 +80,7 @@ dotnet publish src\Island.App -c Release -r win-x64 --self-contained false -o pu
 | `peekWidth` | 滑鼠移過去時變寬到多少(一排字,高度同收合) |
 | `expandedWidth` / `expandedHeight` | 點擊展開後的大小(NUSA 展開約 400×175) |
 | `hideWhenIdle` | `true` = 平常完全隱藏,滑鼠推到螢幕上緣中間才出現;`false` = 平常顯示小膠囊。右鍵選單「閒置時隱藏」會直接改這個值,立即生效。 |
+| `showActivityWhenIdle` | 有模組在進行活動(目前只有「正在播放」)時,閒置也顯示小膠囊。右鍵「播放中時顯示」會直接改這個值。 |
 | `hideInFullscreen` | 膠囊所在螢幕有全螢幕程式時自動隱藏。右鍵選單的「全螢幕時隱藏」會直接改這個值,立即生效。 |
 | `softwareRendering` | `true` = 軟體算圖,不建立 Direct3D 裝置,記憶體約省一半(見下方數據)。之後展開動畫若不順可改成 `false`。 |
 | `modules` | 模組順序。第一個有收合畫面的模組放在膠囊中央;沒列出但有找到的模組會排在後面。 |
@@ -88,7 +92,7 @@ dotnet publish src\Island.App -c Release -r win-x64 --self-contained false -o pu
 
 ```
 Island.sln
-Directory.Build.props            共用設定(net10.0-windows、WPF、Nullable)
+Directory.Build.props            共用設定(net10.0-windows10.0.19041.0、WPF、Nullable)。指定 Windows 10 SDK 版本才能用 WinRT API(媒體控制)
 src/
   Island.App/                    外殼(exe 名稱 Island.exe)
     App.xaml(.cs)                啟動:Mutex、讀設定、載入模組、建立視窗
@@ -110,10 +114,15 @@ src/
     IIslandDropTarget.cs         選用:接收拖到膠囊上的東西(CanAccept / Accept)
     IIslandExpandAware.cs        選用:展開畫面顯示/隱藏時收到通知
     IIslandPeekProvider.cs       選用:滑鼠移過去(一排字)時左側的內容,Clock 用它顯示日期
+    IIslandActivity.cs           選用:「正在進行的活動」。有活動時閒置也顯示膠囊,並以 CreateActivityView 取代收合內容
     IslandModuleBase.cs          模組基底類別(SetBadge 會自動通知外殼)
   Modules/
     Directory.Build.props        所有模組自動引用 Island.Core
     Island.Modules.Clock/        時間模組:對齊整分鐘的單次計時器;展開畫面顯示大時間 + 日期
+    Island.Modules.Media/
+      MediaModule.cs             系統全域媒體控制(GlobalSystemMediaTransportControlsSessionManager):選工作階段、讀取資訊、控制
+      MediaView.xaml(.cs)        播放分頁:封面、歌名、進度、控制按鈕
+      MediaActivityView.cs       播放中閒置時的小膠囊內容
     Island.Modules.Shelf/
       ShelfModule.cs             清單、拖入/拖出、保存、Badge
       ShelfView.xaml(.cs)        展開畫面:圖示格狀清單、標題列、空白提示
@@ -132,7 +141,7 @@ src/
 ### 新增模組
 
 ```powershell
-dotnet new classlib -n Island.Modules.Xxx -o src\Modules\Island.Modules.Xxx -f net10.0
+dotnet new classlib -n Island.Modules.Xxx -o src\Modules\Island.Modules.Xxx -f net10.0-windows10.0.19041.0
 Remove-Item src\Modules\Island.Modules.Xxx\Class1.cs
 ```
 
@@ -183,10 +192,19 @@ public sealed class XxxModule : IslandModuleBase
 | 全螢幕時隱藏 | 註冊成**不佔空間**的 AppBar(只 `ABM_NEW`,不 `ABM_SETPOS`)以收到系統的 `ABN_FULLSCREENAPP` 通知,再加上前景視窗切換事件,兩者都等 250 ms 讓視窗大小穩定後判斷一次,不輪詢。判斷:`SHQueryUserNotificationState` 回報 D3D 獨佔全螢幕/簡報模式;或依 Z 順序找出膠囊所在螢幕上最上面的一般視窗(略過工具視窗、被 DWM 隱藏的視窗、桌面與工作列),它蓋滿整個螢幕、且不是「有標題列的一般最大化」就算全螢幕。 |
 | 閒置隱藏 + 熱區 | 視窗貼齊螢幕頂端,膠囊用 Margin 往下 `topOffset`。閒置時膠囊 Opacity = 0(像素 alpha 0,系統直接讓滑鼠穿透);熱區是 alpha 1/255 的細條,看不見但收得到滑鼠與拖放。熱區與膠囊包在同一個 Grid 裡,滑鼠進出只看這個 Grid。 |
 | 點外面收合 | 不取得焦點的視窗收不到失焦事件,所以只在「固定展開」期間掛 `WH_MOUSE_LL`,收合時立刻卸下。掛勾裡只用 `WindowFromPoint` 判斷點到的視窗是不是本程式(膠囊、右鍵選單都算裡面),收合排到 UI 執行緒稍後執行。 |
+| 正在播放 | `GlobalSystemMediaTransportControlsSessionManager`,和 Windows 音量提示框的媒體卡片是同一套,所以有接系統媒體控制的程式都支援。訂閱所有工作階段的播放狀態/歌曲資訊事件,優先顯示「正在播放」的那個;事件 60 ms 去抖動後才重新讀取。瀏覽器播放時約每 4～5 秒送一次時間軸更新,收合時直接忽略,展開時才讀;進度條只在展開於播放分頁且正在播放時每秒更新。封面以 160 px 解碼並凍結。閒置的小膠囊沒有動畫(軟體算圖下持續動畫會一直耗 CPU)。 |
 | 開機啟動 | `HKCU\...\Run`,值為 `"Island.exe 完整路徑"`。 |
 | 螢幕熱插拔 | `WM_DISPLAYCHANGE`、`WM_DPICHANGED`、`SystemEvents.DisplaySettingsChanged`、睡眠喚醒 → 400 ms 去抖動後定位,1.5 秒後再確認一次。拔掉外接螢幕時 Windows 會把筆電螢幕改成主螢幕,`"primary"` 模式自然會跟過去。 |
 
 ## 效能量測(2026-11-22,Release 建置,16 執行緒 CPU,1920×1080 @100%)
+
+### 正在播放(Chrome 播放 YouTube,閒置顯示播放小膠囊)
+
+| 情況 | CPU | 工作管理員「記憶體」 | Private Bytes | Working Set | 執行緒 |
+|---|---|---|---|---|---|
+| 啟動 15 秒後量 90 秒 | 109 ms / 90 s ≈ 0.12% 單核 | **24.3 MB** | 49.5 MB | 114.6 MB | 10 |
+
+第一版沒有忽略時間軸事件,同樣情況是 400 ms / 90 s,改了之後降到上面的數字。
 
 ### 第 2 階段(收合狀態閒置 60 秒)
 
@@ -281,7 +299,9 @@ dotnet-counters monitor -n Island --counters System.Runtime
 ## 已知事項
 
 - 熱區會擋住螢幕最上緣中間一小塊(預設 200 × 12 DIP)的點擊,例如剛好在那裡的瀏覽器分頁的最上緣幾個像素。
-- NUSA 若還開著,它的膠囊也在螢幕上緣中間,會蓋住熱區(兩個都是 Topmost),請關掉 NUSA。
+- 同時有多個來源在播放時,顯示系統列出的第一個正在播放的來源。
+- 有些程式不提供封面或進度(例如部分網站),這時顯示預設圖示、隱藏進度條。
+- 建置輸出資料夾改成 `net10.0-windows10.0.19041.0`。開機啟動的路徑會在新版 Island 啟動時自動更新。
 
 - 全螢幕隱藏判斷的是「該螢幕上最上面的一般視窗」:全螢幕影片上方如果開了一個小視窗(例如在同一螢幕上跳出聊天視窗),膠囊會暫時出現,關掉小視窗就再隱藏。
 - 右鍵選單開啟時,選單本身可能短暫取得焦點(這是 WPF ContextMenu 的行為),關閉後就不會影響。
@@ -289,6 +309,7 @@ dotnet-counters monitor -n Island --counters System.Runtime
 ## 之後可以做的(第 3 階段候選)
 
 1. ~~全螢幕時自動隱藏~~、~~開機自動啟動~~:已完成。
-3. **媒體模組**:用 `GlobalSystemMediaTransportControlsSessionManager` 顯示正在播放的歌曲,提供播放/暫停/上一首/下一首;收合時左側顯示小圖示。
+3. ~~媒體模組~~:已完成。之後可加:點進度條跳轉(`TryChangePlaybackPositionAsync`)、多個來源切換。
+6. **UI 設計**:統一右鍵選單(目前是 WPF 預設樣式,太樸素)、展開面板、分頁的視覺風格。
 4. **Shelf 進階**:拖入文字/網址/圖片(目前只接收檔案)、多選、較大的縮圖(`IShellItemImageFactory`)、選擇性複製到 Shelf 資料夾。
 5. **設定畫面**:在右鍵選單加「設定」,選螢幕、開關模組,不用手動改 JSON。

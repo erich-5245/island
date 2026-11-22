@@ -34,6 +34,12 @@ internal sealed class IslandSettings
     /// </summary>
     public bool HideWhenIdle { get; set; } = true;
 
+    /// <summary>
+    /// true = 有模組在進行活動(例如正在播放音樂)時,閒置也顯示小膠囊(封面 + 歌名)。
+    /// 右鍵選單「播放中時顯示」可切換。
+    /// </summary>
+    public bool ShowActivityWhenIdle { get; set; } = true;
+
     /// <summary>島所在的螢幕有全螢幕程式(影片、遊戲、簡報)時自動隱藏。右鍵選單可切換。</summary>
     public bool HideInFullscreen { get; set; } = true;
 
@@ -44,7 +50,7 @@ internal sealed class IslandSettings
     public bool SoftwareRendering { get; set; } = true;
 
     /// <summary>模組排列順序。沒列出但有找到的模組會排在後面。</summary>
-    public List<string> Modules { get; set; } = ["clock", "shelf"];
+    public List<string> Modules { get; set; } = ["clock", "media", "shelf"];
 
     /// <summary>要停用的模組 Id。</summary>
     public List<string> DisabledModules { get; set; } = [];

@@ -15,6 +15,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Island.Modules.Clock", "src
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Island.Modules.Shelf", "src\Modules\Island.Modules.Shelf\Island.Modules.Shelf.csproj", "{0ED8FA60-3625-4641-B2F3-E593C793E8FF}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Island.Modules.Media", "src\Modules\Island.Modules.Media\Island.Modules.Media.csproj", "{05AA1D9A-65FA-4C15-AEB9-5458FB39DF78}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -73,6 +75,18 @@ Global
 		{0ED8FA60-3625-4641-B2F3-E593C793E8FF}.Release|x64.Build.0 = Release|Any CPU
 		{0ED8FA60-3625-4641-B2F3-E593C793E8FF}.Release|x86.ActiveCfg = Release|Any CPU
 		{0ED8FA60-3625-4641-B2F3-E593C793E8FF}.Release|x86.Build.0 = Release|Any CPU
+		{05AA1D9A-65FA-4C15-AEB9-5458FB39DF78}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{05AA1D9A-65FA-4C15-AEB9-5458FB39DF78}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{05AA1D9A-65FA-4C15-AEB9-5458FB39DF78}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{05AA1D9A-65FA-4C15-AEB9-5458FB39DF78}.Debug|x64.Build.0 = Debug|Any CPU
+		{05AA1D9A-65FA-4C15-AEB9-5458FB39DF78}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{05AA1D9A-65FA-4C15-AEB9-5458FB39DF78}.Debug|x86.Build.0 = Debug|Any CPU
+		{05AA1D9A-65FA-4C15-AEB9-5458FB39DF78}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{05AA1D9A-65FA-4C15-AEB9-5458FB39DF78}.Release|Any CPU.Build.0 = Release|Any CPU
+		{05AA1D9A-65FA-4C15-AEB9-5458FB39DF78}.Release|x64.ActiveCfg = Release|Any CPU
+		{05AA1D9A-65FA-4C15-AEB9-5458FB39DF78}.Release|x64.Build.0 = Release|Any CPU
+		{05AA1D9A-65FA-4C15-AEB9-5458FB39DF78}.Release|x86.ActiveCfg = Release|Any CPU
+		{05AA1D9A-65FA-4C15-AEB9-5458FB39DF78}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -82,5 +96,6 @@ Global
 		{01751A77-1F33-45F3-9F88-0F7CE3094650} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
 		{3C2ECA8C-8059-4253-BEC3-A7C33A6E5975} = {CA253913-39DE-BFD0-C9A3-4B7EC6FBDF17}
 		{0ED8FA60-3625-4641-B2F3-E593C793E8FF} = {CA253913-39DE-BFD0-C9A3-4B7EC6FBDF17}
+		{05AA1D9A-65FA-4C15-AEB9-5458FB39DF78} = {CA253913-39DE-BFD0-C9A3-4B7EC6FBDF17}
 	EndGlobalSection
 EndGlobal
