@@ -19,7 +19,7 @@ public enum PomodoroPhase { Focus, ShortBreak, LongBreak }
 /// 效能:只在「執行中」才有每秒一次的計時器;以「結束時刻」計算剩餘時間,
 /// 電腦睡眠或計時器延遲都不會累積誤差。沒有在計時時完全不耗資源。
 /// </summary>
-public sealed class TimerModule : IslandModuleBase, IIslandActivity, IIslandExpandAware
+public sealed class TimerModule : IslandModuleBase, IIslandActivity, IIslandExpandAware, IIslandCompact
 {
     public static readonly TimeSpan FocusLength = TimeSpan.FromMinutes(25);
     public static readonly TimeSpan ShortBreakLength = TimeSpan.FromMinutes(5);
@@ -35,6 +35,7 @@ public sealed class TimerModule : IslandModuleBase, IIslandActivity, IIslandExpa
     private DateTime _endsAt;
     private TimerView? _view;
     private TimerActivityView? _activityView;
+    private TimerRingView? _ring;
 
     public override string Id => "timer";
     public override string Title => "計時";
@@ -72,6 +73,9 @@ public sealed class TimerModule : IslandModuleBase, IIslandActivity, IIslandExpa
     }
 
     public FrameworkElement CreateActivityView() => _activityView ??= new TimerActivityView(this);
+
+    public bool IsCompactRelevant => IsActivityActive;
+    public FrameworkElement CreateCompactView() => _ring ??= new TimerRingView(this);
     public override FrameworkElement CreateExpandedView() => _view ??= new TimerView(this);
 
     // ── 操作(由畫面呼叫) ─────────────────────────────────
@@ -263,6 +267,7 @@ public sealed class TimerModule : IslandModuleBase, IIslandActivity, IIslandExpa
     {
         if (_view is not null && (!tickOnly || _view.IsVisible)) _view.Update();
         if (_activityView is not null && (!tickOnly || _activityView.IsVisible)) _activityView.Update();
+        if (_ring is not null && (!tickOnly || _ring.IsVisible)) _ring.Update();
     }
 
     private static void PlaySound()

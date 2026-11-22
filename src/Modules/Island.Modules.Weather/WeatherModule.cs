@@ -16,7 +16,7 @@ namespace Island.Modules.Weather;
 /// - 30 分鐘內可能下雨(而現在沒下)時,膠囊主動出現提醒,同一場雨只提醒一次。
 /// 位置存在 %LOCALAPPDATA%\Island\modules\weather\location.json,只送出經緯度。
 /// </summary>
-public sealed class WeatherModule : IslandModuleBase, IIslandActivity, IIslandExpandAware
+public sealed class WeatherModule : IslandModuleBase, IIslandActivity, IIslandExpandAware, IIslandCompact
 {
     private static readonly TimeSpan RefreshInterval = TimeSpan.FromMinutes(15);
     private static readonly TimeSpan RetryInterval = TimeSpan.FromMinutes(5);
@@ -31,6 +31,7 @@ public sealed class WeatherModule : IslandModuleBase, IIslandActivity, IIslandEx
     private DispatcherTimer? _alertTimer;
     private WeatherView? _view;
     private WeatherAlertView? _alertView;
+    private System.Windows.Controls.TextBlock? _compact;
     private bool _fetching;
     private bool _alertActive;
     private bool _rainAlerted;   // 這一場雨已經提醒過
@@ -57,6 +58,28 @@ public sealed class WeatherModule : IslandModuleBase, IIslandActivity, IIslandEx
     }
 
     public FrameworkElement CreateActivityView() => _alertView ??= new WeatherAlertView();
+
+    public bool IsCompactRelevant => Current is not null;
+
+    /// <summary>小圓:符號 + 溫度,例如「☾16°」。</summary>
+    public FrameworkElement CreateCompactView()
+    {
+        _compact ??= new System.Windows.Controls.TextBlock
+        {
+            FontSize = 11,
+            Foreground = System.Windows.Media.Brushes.White,
+            HorizontalAlignment = HorizontalAlignment.Center,
+            VerticalAlignment = VerticalAlignment.Center,
+        };
+        UpdateCompact();
+        return _compact;
+    }
+
+    private void UpdateCompact()
+    {
+        if (_compact is null || Current is not { } c) return;
+        _compact.Text = $"{WeatherCodes.Symbol(c.Code, c.IsDay)}{Math.Round(c.Temperature):0}°";
+    }
     public override FrameworkElement CreateExpandedView() => _view ??= new WeatherView(this);
 
     public void OnExpanded()
@@ -102,6 +125,7 @@ public sealed class WeatherModule : IslandModuleBase, IIslandActivity, IIslandEx
             SetBadge(null);
             return;
         }
+        UpdateCompact();
         SetBadge(new IslandBadge($"{WeatherCodes.Symbol(c.Code, c.IsDay)} {Math.Round(c.Temperature):0}°"));
     }
 

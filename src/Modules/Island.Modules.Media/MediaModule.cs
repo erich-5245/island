@@ -18,7 +18,7 @@ namespace Island.Modules.Media;
 /// 效能:完全事件驅動。系統通知「換歌 / 播放狀態 / 時間軸」改變時才更新;
 /// 進度條只有在展開且停在這個分頁、而且正在播放時,才每秒更新一次。
 /// </summary>
-public sealed class MediaModule : IslandModuleBase, IIslandActivity, IIslandExpandAware
+public sealed class MediaModule : IslandModuleBase, IIslandActivity, IIslandExpandAware, IIslandCompact
 {
     /// <summary>暫停後多久才算「沒有活動」(換歌時狀態會短暫跳動,避免膠囊閃爍)。</summary>
     private static readonly TimeSpan InactiveGrace = TimeSpan.FromSeconds(2);
@@ -43,6 +43,7 @@ public sealed class MediaModule : IslandModuleBase, IIslandActivity, IIslandExpa
     private string? _trackKey;   // 用來判斷「換歌」:來源 + 標題 + 歌手
     private static readonly TimeSpan AnnounceDuration = TimeSpan.FromSeconds(3);
     private MediaActivityView? _activityView;
+    private MediaCompactView? _compactView;
 
     public override string Id => "media";
     public override string Title => "播放";
@@ -84,6 +85,9 @@ public sealed class MediaModule : IslandModuleBase, IIslandActivity, IIslandExpa
     }
 
     public FrameworkElement CreateActivityView() => _activityView ??= new MediaActivityView(Current);
+
+    public bool IsCompactRelevant => _activityActive;
+    public FrameworkElement CreateCompactView() => _compactView ??= new MediaCompactView(Current);
 
     public override FrameworkElement CreateExpandedView() => _view ??= new MediaView(this);
 
@@ -267,6 +271,7 @@ public sealed class MediaModule : IslandModuleBase, IIslandActivity, IIslandExpa
         UpdateAccent();
         _view?.Update(snapshot);
         _activityView?.Update(snapshot);
+        _compactView?.Update(snapshot);
         UpdateProgressTimer();
 
         bool active = snapshot.HasSession && snapshot.IsPlaying && !string.IsNullOrEmpty(snapshot.Title);

@@ -81,7 +81,12 @@ public partial class MainWindow : Window, IShellController
         _expandedSize = new Size(settings.ExpandedWidth, settings.ExpandedHeight);
 
         // 視窗貼齊螢幕頂端,膠囊往下 TopOffset;中間的縫由熱區補滿
-        Capsule.Margin = new Thickness(0, settings.TopOffset, 0, 0);
+        IslandRow.Margin = new Thickness(0, settings.TopOffset, 0, 0);
+        foreach (var circle in new[] { LeftCircle, RightCircle })
+        {
+            circle.Width = circle.Height = _collapsedSize.Height;
+            circle.CornerRadius = new CornerRadius(_collapsedSize.Height / 2);
+        }
         HotZone.Width = _collapsedSize.Width;
         HotZone.Height = settings.TopOffset + HotZoneOverlap;
         ApplyIdleMode(animate: false);
@@ -93,7 +98,9 @@ public partial class MainWindow : Window, IShellController
         ExpandedLayer.Width = _expandedSize.Width - 2;                  // 固定為展開尺寸,放大時像揭開
         ExpandedLayer.Height = _expandedSize.Height - 2;
         // 視窗要比展開後的島大一點(預留動畫回彈空間)
-        Width = Math.Max(Width, Math.Max(_peekSize.Width, _expandedSize.Width) + 60);
+        // 預覽時兩側可能各多一個小圓
+        double peekRow = _peekSize.Width + 2 * (_collapsedSize.Height + 6);
+        Width = Math.Max(Width, Math.Max(peekRow, _expandedSize.Width) + 60);
         Height = Math.Max(Height, _expandedSize.Height + settings.TopOffset + 60);
 
         _leaveTimer = new DispatcherTimer(DispatcherPriority.Background) { Interval = LeaveCheckInterval };
@@ -286,7 +293,7 @@ public partial class MainWindow : Window, IShellController
             .Select(p => SafeCreate((IIslandModule)p, p.CreatePeekView))
             .FirstOrDefault(v => v is not null);
 
-        foreach (var m in _modules) m.BadgeChanged += (_, _) => RefreshBadges();
+        foreach (var m in _modules) m.BadgeChanged += (_, _) => { RefreshBadges(); UpdateCircles(); };
         RefreshBadges();
 
         foreach (var m in _modules)
@@ -388,6 +395,7 @@ public partial class MainWindow : Window, IShellController
 
         _expanded = true;
         ApplyCapsuleChrome();
+        UpdateCircles();
         _peeking = false;
         _announcing = false;
         _announceTimer.Stop();
@@ -475,13 +483,22 @@ public partial class MainWindow : Window, IShellController
         }
     }
 
+    /// <summary>滑鼠是否在島上(膠囊或兩側看得到的小圓)。</summary>
     private bool IsCursorOverCapsule()
     {
-        if (!GetCursorPos(out var pt) || PresentationSource.FromVisual(Capsule) is null) return false;
-        var p = Capsule.PointFromScreen(new Point(pt.X, pt.Y));
+        if (!GetCursorPos(out var pt)) return false;
+        return IsCursorOver(Capsule, pt)
+               || (LeftCircle.IsVisible && IsCursorOver(LeftCircle, pt))
+               || (RightCircle.IsVisible && IsCursorOver(RightCircle, pt));
+    }
+
+    private static bool IsCursorOver(FrameworkElement element, POINT pt)
+    {
+        if (PresentationSource.FromVisual(element) is null) return false;
+        var p = element.PointFromScreen(new Point(pt.X, pt.Y));
         const double slack = 6;
         return p.X >= -slack && p.Y >= -slack - 8   // 上方多留一點:膠囊上緣到螢幕頂端的縫隙
-               && p.X <= Capsule.ActualWidth + slack && p.Y <= Capsule.ActualHeight + slack;
+               && p.X <= element.ActualWidth + slack && p.Y <= element.ActualHeight + slack;
     }
 
     private void AnimateSize(Size to, Duration duration, IEasingFunction easing)
@@ -557,6 +574,7 @@ public partial class MainWindow : Window, IShellController
         _peeking = false;
         _announcing = false;
         _announceTimer.Stop();
+        UpdateCircles();
         AnimateSize(_collapsedSize, PeekDuration, new CubicEase { EasingMode = EasingMode.EaseOut });
         if (IdleVisible)
         {
@@ -587,9 +605,111 @@ public partial class MainWindow : Window, IShellController
     // 閒置時照常隱藏;滑鼠移過去時,有活動就顯示活動畫面(封面 + 歌名),沒有就顯示日期/時間/小提示。
     // 模組可以呼叫 Announce 讓膠囊短暫出現(換歌時約 3 秒)。
 
-    /// <summary>第一個有活動的模組(依模組順序)。</summary>
+    /// <summary>依 liveOrder 排序的模組(沒列出的照模組順序排在後面)。</summary>
+    private IEnumerable<IIslandModule> LiveOrdered =>
+        _modules.OrderBy(m =>
+        {
+            int i = _settings.LiveOrder.FindIndex(id => string.Equals(id, m.Id, StringComparison.OrdinalIgnoreCase));
+            return i < 0 ? int.MaxValue : i;
+        });
+
+    /// <summary>中間長條要顯示的活動:依 liveOrder 第一個有活動的模組。</summary>
     private IIslandModule? CurrentActivity =>
-        _modules.FirstOrDefault(m => m is IIslandActivity { IsActivityActive: true });
+        LiveOrdered.FirstOrDefault(m => m is IIslandActivity { IsActivityActive: true });
+
+    // ── 左右小圓(多個即時狀態) ───────────────────────────
+
+    private readonly Dictionary<IIslandModule, FrameworkElement?> _compactViews = [];
+
+    /// <summary>
+    /// 只在「預覽」(滑鼠在島上)且長條正在顯示某個活動時出現:
+    /// 其餘有東西可看的模組依 liveOrder 取最多兩個,一個時放右邊,兩個時左右各一。
+    /// 長條顯示的是日期/時間那一排時不放小圓(溫度、Shelf 數量已經在那一排裡了)。
+    /// </summary>
+    private void UpdateCircles()
+    {
+        var pill = _peeking && !_expanded && !_announcing ? CurrentActivity : null;
+        var picks = new List<IIslandModule>();
+        if (pill is not null)
+        {
+            foreach (var m in LiveOrdered)
+            {
+                if (picks.Count == 2) break;
+                if (ReferenceEquals(m, pill) || m is not IIslandCompact c) continue;
+                if (_settings.LiveHidden.Contains(m.Id, StringComparer.OrdinalIgnoreCase)) continue;
+                bool relevant;
+                try { relevant = c.IsCompactRelevant; } catch { relevant = false; }
+                if (!relevant) continue;
+                if (CompactView(m) is null) continue;
+                picks.Add(m);
+            }
+        }
+
+        var (left, right) = picks.Count switch
+        {
+            0 => ((IIslandModule?)null, (IIslandModule?)null),
+            1 => (null, picks[0]),
+            _ => (picks[0], picks[1]),
+        };
+        // 只要有任何小圓,兩側都保留位置(空的那側看不見),長條才會一直在正中間
+        bool reserve = picks.Count > 0;
+        ShowCircle(LeftCircle, LeftCircleSlot, left, reserve);
+        ShowCircle(RightCircle, RightCircleSlot, right, reserve);
+    }
+
+    private FrameworkElement? CompactView(IIslandModule m)
+    {
+        if (!_compactViews.TryGetValue(m, out var view))
+        {
+            view = SafeCreate(m, ((IIslandCompact)m).CreateCompactView);
+            _compactViews[m] = view;
+        }
+        return view;
+    }
+
+    private void ShowCircle(Border circle, ContentControl slot, IIslandModule? module, bool reserve)
+    {
+        if (module is null)
+        {
+            var empty = reserve ? Visibility.Hidden : Visibility.Collapsed;
+            if (circle.Visibility != Visibility.Visible)
+            {
+                circle.Visibility = empty;
+                return;
+            }
+            circle.Tag = null;
+            var fade = new DoubleAnimation(0, new Duration(TimeSpan.FromMilliseconds(120)));
+            fade.Completed += (_, _) =>
+            {
+                if (circle.Tag is not null) return;
+                slot.Content = null;
+                bool stillReserve = LeftCircle.Tag is not null || RightCircle.Tag is not null;
+                circle.Visibility = stillReserve ? Visibility.Hidden : Visibility.Collapsed;
+                if (!stillReserve)
+                    foreach (var c in new[] { LeftCircle, RightCircle })
+                        if (c.Tag is null && c.Visibility == Visibility.Hidden) c.Visibility = Visibility.Collapsed;
+            };
+            circle.BeginAnimation(OpacityProperty, fade);
+            return;
+        }
+
+        bool appearing = circle.Visibility != Visibility.Visible || circle.Tag is null;
+        circle.Tag = module;
+        var view = CompactView(module);
+        if (!ReferenceEquals(slot.Content, view)) slot.Content = view;
+        circle.Visibility = Visibility.Visible;
+        if (appearing)
+            circle.BeginAnimation(OpacityProperty, new DoubleAnimation(1, new Duration(TimeSpan.FromMilliseconds(180)))
+            {
+                BeginTime = TimeSpan.FromMilliseconds(60),
+            });
+    }
+
+    private void OnCircleClick(object sender, MouseButtonEventArgs e)
+    {
+        if (sender is Border { Tag: IIslandModule module }) Expand(module, pin: true);
+        e.Handled = true;
+    }
 
     /// <summary>閒置時膠囊是否可見。</summary>
     private bool IdleVisible => !_settings.HideWhenIdle;
@@ -598,6 +718,7 @@ public partial class MainWindow : Window, IShellController
     {
         Log.Write($"活動:{CurrentActivity?.Id ?? "(無)"}");
         if (_peeking || _announcing) UpdateCollapsedLayers();
+        else UpdateCircles();
     }
 
     void IShellController.Announce(string moduleId, TimeSpan duration)
@@ -674,6 +795,7 @@ public partial class MainWindow : Window, IShellController
             SetOpacity(BadgeStrip, showActivity ? 0 : 1);
             SetOpacity(LeftSlot, !showActivity && _peeking ? 1 : 0);
             SetOpacity(CollapsedLayer, 1);
+            UpdateCircles();
             return;
         }
         var d = TimeSpan.FromMilliseconds(160);
@@ -681,6 +803,7 @@ public partial class MainWindow : Window, IShellController
         Fade(CenterSlot, showActivity ? 0 : 1, d);
         Fade(BadgeStrip, showActivity ? 0 : 1, d);
         Fade(LeftSlot, !showActivity && _peeking ? 1 : 0, d, showActivity || !_peeking ? null : TimeSpan.FromMilliseconds(60));
+        UpdateCircles();
     }
 
     private static void SetOpacity(UIElement element, double value)
@@ -706,8 +829,7 @@ public partial class MainWindow : Window, IShellController
     {
         if (_expanded && _pinned) return;   // 已固定:點裡面是在操作模組內容
         // 有活動(例如正在播放)時直接展開到那個模組
-        var activity = _modules.FirstOrDefault(m => m is IIslandActivity { IsActivityActive: true });
-        Expand(activity, pin: true);
+        Expand(CurrentActivity, pin: true);
         e.Handled = true;
     }
 

@@ -81,6 +81,19 @@
         <Border x:Name="HotZone" Background="#01000000"
                 HorizontalAlignment="Center" VerticalAlignment="Top" />
 
+        <!-- 左小圓 | 膠囊(長條)| 右小圓:滑鼠移過去且同時有多個即時狀態時,兩側出現小圓 -->
+        <StackPanel x:Name="IslandRow" Orientation="Horizontal"
+                    HorizontalAlignment="Center" VerticalAlignment="Top">
+
+        <Border x:Name="LeftCircle" Width="36" Height="36" CornerRadius="18" Margin="0,0,6,0"
+                VerticalAlignment="Top" Visibility="Collapsed" Opacity="0" Cursor="Hand"
+                Background="{StaticResource CapsuleBrush}"
+                BorderBrush="{DynamicResource Island.CapsuleBorder}" BorderThickness="1"
+                MouseLeftButtonUp="OnCircleClick">
+            <ContentControl x:Name="LeftCircleSlot" Focusable="False" IsHitTestVisible="False"
+                            HorizontalAlignment="Center" VerticalAlignment="Center" />
+        </Border>
+
         <Border x:Name="Capsule"
                 Width="200" Height="36"
                 HorizontalAlignment="Center" VerticalAlignment="Top"
@@ -136,6 +149,17 @@
                 </Grid>
             </Grid>
         </Border>
+
+        <Border x:Name="RightCircle" Width="36" Height="36" CornerRadius="18" Margin="6,0,0,0"
+                VerticalAlignment="Top" Visibility="Collapsed" Opacity="0" Cursor="Hand"
+                Background="{StaticResource CapsuleBrush}"
+                BorderBrush="{DynamicResource Island.CapsuleBorder}" BorderThickness="1"
+                MouseLeftButtonUp="OnCircleClick">
+            <ContentControl x:Name="RightCircleSlot" Focusable="False" IsHitTestVisible="False"
+                            HorizontalAlignment="Center" VerticalAlignment="Center" />
+        </Border>
+
+        </StackPanel>
       </Grid>
     </Grid>
 </Window>

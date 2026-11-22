@@ -13,12 +13,14 @@ namespace Island.Modules.Shelf;
 /// 只保存路徑(不複製檔案),清單存在 %LOCALAPPDATA%\Island\modules\shelf\shelf.json。
 /// 閒置時不做任何事:沒有計時器、沒有檔案監看;展開時才檢查檔案是否還存在。
 /// </summary>
-public sealed class ShelfModule : IslandModuleBase, IIslandDropTarget, IIslandExpandAware
+public sealed class ShelfModule : IslandModuleBase, IIslandDropTarget, IIslandExpandAware, IIslandCompact
 {
     private static readonly JsonSerializerOptions JsonOptions = new() { WriteIndented = true };
 
     private string _storeFile = "";
     private ShelfView? _view;
+    private System.Windows.Controls.Grid? _compact;
+    private System.Windows.Controls.TextBlock? _compactCount;
 
     public override string Id => "shelf";
     public override string Title => "Shelf";
@@ -34,6 +36,44 @@ public sealed class ShelfModule : IslandModuleBase, IIslandDropTarget, IIslandEx
     }
 
     public override FrameworkElement CreateExpandedView() => _view ??= new ShelfView(this);
+
+    public bool IsCompactRelevant => Items.Count > 0;
+
+    /// <summary>小圓:檔案圖示 + 右上角數量。</summary>
+    public FrameworkElement CreateCompactView()
+    {
+        if (_compact is not null) return _compact;
+        _compact = new System.Windows.Controls.Grid { Width = 30, Height = 30 };
+        _compact.Children.Add(new System.Windows.Controls.TextBlock
+        {
+            Text = "\uE8A5",   // 文件
+            FontFamily = new System.Windows.Media.FontFamily("Segoe Fluent Icons, Segoe MDL2 Assets"),
+            FontSize = 13,
+            Foreground = System.Windows.Media.Brushes.White,
+            HorizontalAlignment = HorizontalAlignment.Center,
+            VerticalAlignment = VerticalAlignment.Center,
+        });
+        var badge = new System.Windows.Controls.Border
+        {
+            CornerRadius = new CornerRadius(6),
+            Padding = new Thickness(3, 0, 3, 0),
+            MinWidth = 12,
+            HorizontalAlignment = HorizontalAlignment.Right,
+            VerticalAlignment = VerticalAlignment.Top,
+        };
+        badge.SetResourceReference(System.Windows.Controls.Border.BackgroundProperty, IslandTheme.Accent);
+        _compactCount = new System.Windows.Controls.TextBlock { FontSize = 9, FontWeight = FontWeights.SemiBold, TextAlignment = TextAlignment.Center };
+        _compactCount.SetResourceReference(System.Windows.Controls.TextBlock.ForegroundProperty, IslandTheme.OnAccent);
+        badge.Child = _compactCount;
+        _compact.Children.Add(badge);
+        UpdateCompact();
+        return _compact;
+    }
+
+    private void UpdateCompact()
+    {
+        if (_compactCount is not null) _compactCount.Text = Items.Count > 99 ? "99+" : Items.Count.ToString();
+    }
 
     // ── 拖進來 ───────────────────────────────────────────
 
@@ -139,8 +179,11 @@ public sealed class ShelfModule : IslandModuleBase, IIslandDropTarget, IIslandEx
         UpdateBadge();
     }
 
-    private void UpdateBadge() =>
+    private void UpdateBadge()
+    {
+        UpdateCompact();
         SetBadge(Items.Count == 0 ? null : new IslandBadge($"Shelf {Items.Count}"));
+    }
 
     private void Load()
     {

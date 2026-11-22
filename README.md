@@ -12,6 +12,7 @@
 | 平常(閒置) | **完全隱藏**。螢幕最上緣中間留一條看不見的熱區(寬同收合膠囊、高 = topOffset + 4 DIP)。右鍵「閒置時隱藏」取消勾選 → 改成平常顯示只有時間的小膠囊。 |
 | 滑鼠推到螢幕上緣中間 / 移到膠囊上 | 出現「一排字」(320 寬)。**正在播放時**顯示封面 + 歌名 · 歌手;沒有播放時顯示左邊日期、中間時間、右邊 Shelf 數量。滑鼠離開約 0.2 秒後再隱藏。 |
 | 正在播放音樂/影片時 | 平常一樣隱藏。**換歌時**膠囊出現約 3 秒(封面 + 歌名 · 歌手)再自動隱藏;暫停/繼續不會出現。右鍵「切歌時顯示」可關掉。 |
+| 多個即時狀態(滑鼠移過去時) | 像 iPhone 動態島:**小圓 + 長條 + 小圓**。長條放 `liveOrder` 第一個有活動的(預設 音樂 > 計時),其餘「有東西可看」的模組最多兩個放小圓:兩個時左右各一,一個時放右邊(左邊保留看不見的空位,長條一直置中)。沒有活動時長條是日期/時間那一排,不放小圓。小圓內容:**計時**=剩餘時間進度環 + 分鐘數(不到 1 分鐘顯示秒數)、**音樂**=圓形封面、**天氣**=符號 + 溫度、**Shelf**=檔案圖示 + 數量。點小圓直接打開那個分頁。 |
 | 左鍵點一下 | **固定展開**成 380×170,上方有模組分頁(時間/天氣/計時/播放/Shelf)。正在播放時直接打開「播放」分頁。滑鼠移開也不會收。 |
 | 天氣 | 沒有音樂/計時時,滑鼠移過去那一排右側顯示「☀ 24°」(晚上是月亮)。**天氣分頁**:現在溫度、狀況、體感、今日高低溫與降雨機率、接下來 6 小時(降雨機率 ≥ 20% 時顯示)。**30 分鐘內可能下雨**(而現在沒下)時膠囊出現「☂ 30 分鐘內可能下雨 · 記得帶傘」約 5 秒,同一場雨只提醒一次。資料來源 Open-Meteo(免費、不需金鑰),每 15 分鐘更新。 |
 | 計時分頁 | **計時器**:選 1/3/5/10/15/30/60 分(或在大時間上滾輪 ±1 分,執行中也能加減)→ 開始/暫停/重設。**番茄鐘**:專注 25 分 → 自動開始休息 5 分(每 4 輪休息 15 分)→ 休息結束提醒,按開始進入下一輪;可跳過這一段,4 個圓點顯示這組完成幾輪。 |
@@ -78,6 +79,8 @@ dotnet publish src\Island.App -c Release -r win-x64 --self-contained false -o pu
   "softwareRendering": true,
   "announceActivity": true,
   "showOsd": true,
+  "liveOrder": ["media", "timer", "weather", "shelf"],
+  "liveHidden": [],
   "modules": ["clock", "weather", "timer", "media", "shelf", "osd"],
   "disabledModules": []
 }
@@ -91,6 +94,8 @@ dotnet publish src\Island.App -c Release -r win-x64 --self-contained false -o pu
 | `peekWidth` | 滑鼠移過去時變寬到多少(一排字,高度同收合) |
 | `expandedWidth` / `expandedHeight` | 點擊展開後的大小(NUSA 展開約 400×175) |
 | `hideWhenIdle` | `true` = 平常完全隱藏,滑鼠推到螢幕上緣中間才出現;`false` = 平常顯示小膠囊。右鍵選單「閒置時隱藏」會直接改這個值,立即生效。 |
+| `liveOrder` | 即時狀態的優先順序:第一個有活動的放中間長條,後面的依序放小圓。例如想讓計時佔長條:`["timer", "media", "weather", "shelf"]`。 |
+| `liveHidden` | 不要放進小圓的模組,例如 `["shelf"]`。 |
 | `showOsd` | 調音量 / 亮度時顯示提示。右鍵「音量亮度提示」會直接改這個值。 |
 | `announceActivity` | 換歌時讓膠囊出現約 3 秒。右鍵「切歌時顯示」會直接改這個值。 |
 | `hideInFullscreen` | 膠囊所在螢幕有全螢幕程式時自動隱藏。右鍵選單的「全螢幕時隱藏」會直接改這個值,立即生效。 |
@@ -128,6 +133,7 @@ src/
     IIslandDropTarget.cs         選用:接收拖到膠囊上的東西(CanAccept / Accept)
     IIslandExpandAware.cs        選用:展開畫面顯示/隱藏時收到通知
     IIslandPeekProvider.cs       選用:滑鼠移過去(一排字)時左側的內容,Clock 用它顯示日期
+    IIslandCompact.cs            選用:縮成小圓(IsCompactRelevant、CreateCompactView)
     IIslandActivity.cs           選用:「正在進行的活動」。有活動時預覽改顯示 CreateActivityView;IIslandHost.Announce 可讓膠囊短暫出現
     IslandModuleBase.cs          模組基底類別(SetBadge 會自動通知外殼)
     IslandTheme.cs               主題筆刷資源鍵(Island.Accent 等),模組用 DynamicResource 取用
@@ -224,6 +230,7 @@ public sealed class XxxModule : IslandModuleBase
 | 閒置隱藏 + 熱區 | 視窗貼齊螢幕頂端,膠囊用 Margin 往下 `topOffset`。閒置時膠囊 Opacity = 0(像素 alpha 0,系統直接讓滑鼠穿透);熱區是 alpha 1/255 的細條,看不見但收得到滑鼠與拖放。熱區與膠囊包在同一個 Grid 裡,滑鼠進出只看這個 Grid。 |
 | 點外面收合 | 不取得焦點的視窗收不到失焦事件,所以只在「固定展開」期間掛 `WH_MOUSE_LL`,收合時立刻卸下。掛勾裡只用 `WindowFromPoint` 判斷點到的視窗是不是本程式(膠囊、右鍵選單都算裡面),收合排到 UI 執行緒稍後執行。 |
 | 正在播放 | `GlobalSystemMediaTransportControlsSessionManager`,和 Windows 音量提示框的媒體卡片是同一套,所以有接系統媒體控制的程式都支援。訂閱所有工作階段的播放狀態/歌曲資訊事件,優先顯示「正在播放」的那個;事件 60 ms 去抖動後才重新讀取。瀏覽器播放時約每 4～5 秒送一次時間軸更新,收合時直接忽略,展開時才讀;進度條只在展開於播放分頁且正在播放時每秒更新。封面以 160 px 解碼並凍結。換歌判斷:來源 + 標題 + 歌手改變且正在播放 → `IIslandHost.Announce(3 秒)`,啟動時讀到的第一首不算。音量只在展開時開啟 Core Audio 端點並註冊通知(每次重新取得預設裝置),收合即釋放;自己設定時帶固定的 event context GUID,收到通知時用它忽略自己造成的變更。 |
+| 小圓 | 膠囊放進一個水平 StackPanel:[左小圓][膠囊][右小圓]。只在預覽、且長條顯示某個活動時計算;相關度變化跟著 ActivityChanged / BadgeChanged 重新排。有任何小圓時兩側都保留位置(空的一側 Hidden),長條保持置中。小圓的畫面只建立一次;計時進度環和其他每秒更新的畫面一樣只在看得到時更新。 |
 | 天氣 | 每 15 分鐘一次 HTTP 請求(失敗 5 分鐘後重試;睡眠喚醒 10 秒後重抓;展開時資料超過 10 分鐘也重抓)。下雨判斷用 `minutely_15` 降水量:接下來兩格(30 分鐘)有 ≥ 0.1 mm 且現在沒下雨 → `Announce`。符號用 Segoe UI Symbol 的單色字元(WPF 不支援彩色 emoji)。 |
 | 音量 / 亮度提示 | 全部事件驅動:Core Audio 音量通知、預設裝置切換通知、WMI 亮度事件。音量與靜音都沒變的通知(聲道平衡等)忽略。`Announce` 在滑鼠停在島上(預覽)時也有效:內容暫時換成提示,時間到換回預覽。 |
 | 計時器 | 只在執行中有 1 秒的 DispatcherTimer。每秒只更新「看得到」的畫面:膠囊完全淡出後外殼把它設為 Hidden(WPF 不再算圖),模組用 `IsVisible` 判斷,畫面重新出現時(IsVisibleChanged)補更新。時間到用 `IIslandHost.Announce`。 |
@@ -351,6 +358,15 @@ dotnet-counters monitor -n Island --counters System.Runtime
 |---|---|---|
 | 計時中、膠囊隱藏(只更新看得到的畫面) | **63 ms / 60 s** | 46.0 MB |
 | 計時中、膠囊隱藏(第一版:隱藏時也每秒更新) | 281 ms / 60 s | 43.7 MB |
+
+## 多個即時狀態驗收(實機)
+
+| 情況 | 結果 |
+|---|---|
+| 音樂 + 天氣 | ✅ 長條「Lover · Taylor Swift」+ 右小圓「☾16°」,長條置中 |
+| 音樂 + 計時 + 天氣 | ✅ 左小圓計時環「5」+ 長條音樂 + 右小圓天氣 |
+| 點左小圓 | ✅ 打開計時分頁(4:45) |
+| 閒置 60 秒 | 78 ms CPU、33.4 MB |
 
 ## 天氣驗收(實機)
 
