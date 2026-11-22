@@ -18,6 +18,12 @@ internal sealed class IslandSettings
     /// <summary>膠囊上緣離螢幕頂端的距離(DIP,100% 縮放下的像素)。</summary>
     public double TopOffset { get; set; } = 8;
 
+    /// <summary>
+    /// true = 使用軟體算圖(不建立 Direct3D 裝置,記憶體較省;膠囊一分鐘才重畫一次,影響可忽略)。
+    /// 之後若展開動畫不夠順,可改成 false 使用 GPU。
+    /// </summary>
+    public bool SoftwareRendering { get; set; } = true;
+
     /// <summary>模組排列順序。沒列出但有找到的模組會排在後面。</summary>
     public List<string> Modules { get; set; } = ["clock", "shelf"];
 

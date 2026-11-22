@@ -1,12 +1,55 @@
 ﻿<Window x:Class="Island.App.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
-        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        xmlns:local="clr-namespace:Island.App"
-        mc:Ignorable="d"
-        Title="MainWindow" Height="450" Width="800">
-    <Grid>
+        Title="Island"
+        Width="640" Height="320"
+        WindowStyle="None"
+        AllowsTransparency="True"
+        Background="Transparent"
+        ResizeMode="NoResize"
+        Topmost="True"
+        ShowInTaskbar="False"
+        ShowActivated="False"
+        Focusable="False"
+        UseLayoutRounding="True"
+        SnapsToDevicePixels="True"
+        FontFamily="{StaticResource IslandFont}">
 
+    <!--
+      視窗本身比膠囊大(預留之後展開的空間)。
+      根 Grid 沒有背景 = 像素 alpha 為 0 = 滑鼠點擊直接穿透到後面的程式。
+      只有膠囊(不透明)會接收滑鼠。
+    -->
+    <Grid>
+        <Border x:Name="Capsule"
+                Width="200" Height="36"
+                HorizontalAlignment="Center" VerticalAlignment="Top"
+                CornerRadius="18"
+                Background="{StaticResource CapsuleBrush}">
+            <Border.ContextMenu>
+                <ContextMenu>
+                    <MenuItem Header="結束" Click="OnExitClick" />
+                </ContextMenu>
+            </Border.ContextMenu>
+
+            <!-- 三欄:左(預留) | 中(主模組的收合畫面) | 右(各模組的小提示) -->
+            <Grid Margin="14,0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+
+                <ContentControl x:Name="LeftSlot" Grid.Column="0"
+                                HorizontalAlignment="Left" VerticalAlignment="Center" Focusable="False" />
+
+                <ContentControl x:Name="CenterSlot" Grid.Column="1"
+                                HorizontalAlignment="Center" VerticalAlignment="Center" Focusable="False" />
+
+                <StackPanel x:Name="BadgeStrip" Grid.Column="2"
+                            Orientation="Horizontal"
+                            HorizontalAlignment="Right" VerticalAlignment="Center" />
+            </Grid>
+        </Border>
     </Grid>
 </Window>
