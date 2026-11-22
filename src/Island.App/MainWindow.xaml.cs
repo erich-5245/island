@@ -45,6 +45,12 @@ public partial class MainWindow : Window, IShellController
     private readonly DispatcherTimer _leaveTimer;
     private readonly DispatcherTimer _hideTimer;
     private readonly OutsideClickWatcher _outsideClick;
+    /// <summary>
+    /// 右鍵選單開著時監看「點外面」。島不取得焦點,WPF 自己偵測不到點到別的程式,
+    /// 選單會一直留在畫面上,所以由我們在點外面時關掉它(島的選單與 Shelf 檔案選單都適用)。
+    /// </summary>
+    private readonly OutsideClickWatcher _menuOutsideClick;
+    private readonly HashSet<ContextMenu> _openMenus = [];
     private bool _expandedViewsBuilt;
 
     private IntPtr _hwnd;
@@ -98,9 +104,12 @@ public partial class MainWindow : Window, IShellController
         _announceTimer = new DispatcherTimer(DispatcherPriority.Background);
         _announceTimer.Tick += OnAnnounceTimerTick;
         IslandRoot.ContextMenu.Closed += (_, _) => _hideTimer.Start();
+        _menuOutsideClick = new OutsideClickWatcher(Dispatcher, CloseMenus);
+        EventManager.RegisterClassHandler(typeof(ContextMenu), ContextMenu.OpenedEvent, new RoutedEventHandler(OnAnyMenuOpened));
+        EventManager.RegisterClassHandler(typeof(ContextMenu), ContextMenu.ClosedEvent, new RoutedEventHandler(OnAnyMenuClosed));
 
         BuildCollapsedContent();
-        Closed += (_, _) => { _leaveTimer.Stop(); _hideTimer.Stop(); _announceTimer.Stop(); _outsideClick.Dispose(); _topmost?.Dispose(); _displays?.Dispose(); _fullscreen?.Dispose(); };
+        Closed += (_, _) => { _leaveTimer.Stop(); _hideTimer.Stop(); _announceTimer.Stop(); _outsideClick.Dispose(); _menuOutsideClick.Dispose(); _topmost?.Dispose(); _displays?.Dispose(); _fullscreen?.Dispose(); };
     }
 
     // ── 視窗建立 ──────────────────────────────────────────
@@ -184,6 +193,7 @@ public partial class MainWindow : Window, IShellController
         Log.Write(fullscreen ? "偵測到全螢幕程式 → 隱藏" : "全螢幕結束 → 顯示");
         if (fullscreen)
         {
+            CloseMenus();
             Collapse(force: true);
             GoIdle();
             Hide();
@@ -196,6 +206,27 @@ public partial class MainWindow : Window, IShellController
     }
 
     // ── 右鍵選單 ─────────────────────────────────────────
+
+    private void OnAnyMenuOpened(object sender, RoutedEventArgs e)
+    {
+        if (sender is not ContextMenu menu) return;
+        _openMenus.Add(menu);
+        _menuOutsideClick.Start();
+    }
+
+    private void OnAnyMenuClosed(object sender, RoutedEventArgs e)
+    {
+        if (sender is ContextMenu menu) _openMenus.Remove(menu);
+        if (_openMenus.Count == 0) _menuOutsideClick.Stop();
+    }
+
+    /// <summary>關掉所有開著的右鍵選單(點到外面、島要隱藏時)。</summary>
+    private void CloseMenus()
+    {
+        foreach (var menu in _openMenus.ToArray()) menu.IsOpen = false;
+        _openMenus.Clear();
+        _menuOutsideClick.Stop();
+    }
 
     private void OnContextMenuOpened(object sender, RoutedEventArgs e)
     {
@@ -381,14 +412,23 @@ public partial class MainWindow : Window, IShellController
         _peeking = peek;
         AnimateSize(peek ? _peekSize : _collapsedSize, CollapseDuration,
             new QuarticEase { EasingMode = EasingMode.EaseOut });
-        if (!peek && !IdleVisible)
-            Fade(Capsule, 0, TimeSpan.FromMilliseconds(220), TimeSpan.FromMilliseconds(60));
-        UpdateCollapsedLayers();
+        bool hide = !peek && !IdleVisible;
         Fade(ExpandedLayer, 0, TimeSpan.FromMilliseconds(110), completed: () =>
         {
             if (!_expanded) ExpandedLayer.Visibility = Visibility.Collapsed;
         });
-        Fade(CollapsedLayer, 1, TimeSpan.FromMilliseconds(160), TimeSpan.FromMilliseconds(110));
+        if (hide)
+        {
+            // 直接收起來隱藏:收合層不淡入(否則淡出途中會閃過時間),隱藏後再重設
+            FadeOutThenReset(TimeSpan.FromMilliseconds(220), TimeSpan.FromMilliseconds(60));
+            CollapsedLayer.BeginAnimation(OpacityProperty, null);
+            CollapsedLayer.Opacity = 0;
+        }
+        else
+        {
+            UpdateCollapsedLayers();
+            Fade(CollapsedLayer, 1, TimeSpan.FromMilliseconds(160), TimeSpan.FromMilliseconds(110));
+        }
         NotifyExpand(_active, false);
     }
 
@@ -478,6 +518,7 @@ public partial class MainWindow : Window, IShellController
         _announceTimer.Stop();
         _announcing = false;
         _peeking = true;
+        if (CollapsedLayer.Opacity < 1) SetOpacity(CollapsedLayer, 1);
         Fade(Capsule, 1, TimeSpan.FromMilliseconds(140));
         AnimateSize(_peekSize, PeekDuration, new CubicEase { EasingMode = EasingMode.EaseOut });
         UpdateCollapsedLayers();
@@ -504,8 +545,29 @@ public partial class MainWindow : Window, IShellController
         _announcing = false;
         _announceTimer.Stop();
         AnimateSize(_collapsedSize, PeekDuration, new CubicEase { EasingMode = EasingMode.EaseOut });
-        Fade(Capsule, IdleVisible ? 1 : 0, TimeSpan.FromMilliseconds(200));
-        UpdateCollapsedLayers();
+        if (IdleVisible)
+        {
+            Fade(Capsule, 1, TimeSpan.FromMilliseconds(200));
+            UpdateCollapsedLayers();
+        }
+        else
+        {
+            CloseMenus();
+            FadeOutThenReset(TimeSpan.FromMilliseconds(200));
+        }
+    }
+
+    /// <summary>
+    /// 淡出到完全隱藏後,才把內容換回「時間」那一層。
+    /// 若同時切換內容,淡出途中會看到時間的殘影(例如播放中滑鼠離開時)。
+    /// </summary>
+    private void FadeOutThenReset(TimeSpan duration, TimeSpan? delay = null)
+    {
+        Fade(Capsule, 0, duration, delay, completed: () =>
+        {
+            if (_expanded || _peeking || _announcing) return;   // 淡出途中又被叫出來
+            UpdateCollapsedLayers(instant: true);
+        });
     }
 
     // ── 活動(例如正在播放) ───────────────────────────────
@@ -533,6 +595,7 @@ public partial class MainWindow : Window, IShellController
 
         _announcing = true;
         _announced = module;
+        if (CollapsedLayer.Opacity < 1) SetOpacity(CollapsedLayer, 1);
         _hideTimer.Stop();
         Fade(Capsule, 1, TimeSpan.FromMilliseconds(160));
         AnimateSize(_peekSize, PeekDuration, new CubicEase { EasingMode = EasingMode.EaseOut });
@@ -557,7 +620,7 @@ public partial class MainWindow : Window, IShellController
     /// 收合層要顯示什麼:
     /// 預覽或切歌提示時,有活動 → 活動畫面;否則 → 左日期 / 中時間 / 右小提示(左側只在預覽時出現)。
     /// </summary>
-    private void UpdateCollapsedLayers()
+    private void UpdateCollapsedLayers(bool instant = false)
     {
         IIslandModule? activity = null;
         if (!_expanded)
@@ -577,11 +640,26 @@ public partial class MainWindow : Window, IShellController
         }
 
         bool showActivity = activity is not null;
+        if (instant)
+        {
+            SetOpacity(ActivitySlot, showActivity ? 1 : 0);
+            SetOpacity(CenterSlot, showActivity ? 0 : 1);
+            SetOpacity(BadgeStrip, showActivity ? 0 : 1);
+            SetOpacity(LeftSlot, !showActivity && _peeking ? 1 : 0);
+            SetOpacity(CollapsedLayer, 1);
+            return;
+        }
         var d = TimeSpan.FromMilliseconds(160);
         Fade(ActivitySlot, showActivity ? 1 : 0, d);
         Fade(CenterSlot, showActivity ? 0 : 1, d);
         Fade(BadgeStrip, showActivity ? 0 : 1, d);
         Fade(LeftSlot, !showActivity && _peeking ? 1 : 0, d, showActivity || !_peeking ? null : TimeSpan.FromMilliseconds(60));
+    }
+
+    private static void SetOpacity(UIElement element, double value)
+    {
+        element.BeginAnimation(OpacityProperty, null);
+        element.Opacity = value;
     }
 
     private void ApplyIdleMode(bool animate)
