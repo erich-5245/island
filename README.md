@@ -17,6 +17,8 @@
 | 天氣 | 沒有音樂/計時時,滑鼠移過去那一排右側顯示「☀ 24°」(晚上是月亮)。**天氣分頁**:現在溫度、狀況、體感、今日高低溫與降雨機率、接下來 6 小時(降雨機率 ≥ 20% 時顯示)。**30 分鐘內可能下雨**(而現在沒下)時膠囊出現「☂ 30 分鐘內可能下雨 · 記得帶傘」約 5 秒,同一場雨只提醒一次。資料來源 Open-Meteo(免費、不需金鑰),每 15 分鐘更新。 |
 | 計時分頁 | **計時器**:選 1/3/5/10/15/30/60 分(或在大時間上滾輪 ±1 分,執行中也能加減)→ 開始/暫停/重設。**番茄鐘**:專注 25 分 → 自動開始休息 5 分(每 4 輪休息 15 分)→ 休息結束提醒,按開始進入下一輪;可跳過這一段,4 個圓點顯示這組完成幾輪。 |
 | 計時中 | 膠囊照常隱藏;滑鼠移到上緣顯示「碼錶 剩餘時間 狀態」(計時優先於音樂)。**時間到**時膠囊跳出「時間到」約 6 秒並播放提示音(Windows Notify Calendar),之後 30 秒內滑鼠移過去仍會看到,點一下打開計時分頁。 |
+| 插拔電源 / 電量低 | 插上:「⚡ 充電中 78%」(綠色);拔掉:「使用電池 78%」;充到 100%:「已充飽」;沒插電降到 20% 與 10% 各提醒一次(紅色)。充電中或電量偏低時,滑鼠移過去會佔一個小圓:電量環 + 百分比。只在有電池的電腦上啟用。 |
+| 截圖 | Win+Shift+S / Print Screen 截圖後(Windows 會自動存到「螢幕擷取畫面」資料夾),截圖**自動放進 Shelf**,膠囊出現「縮圖 + 截圖已放進 Shelf」約 3 秒,點開 Shelf 就能拖到聊天或文件裡。`modules\shelf\options.json` 的 `captureScreenshots` 設為 false 可關閉。 |
 | 按音量鍵 / 調亮度 | 膠囊從上緣出現約 1.5 秒:**喇叭(或太陽)圖示 + 長條 + 數字**,連按會延長、長條即時跟著動;靜音顯示「靜音」。音量是任何方式改變系統音量都會顯示(鍵盤、工作列、其他程式);亮度只支援由 Windows 控制亮度的螢幕(筆電內建螢幕),外接螢幕用自己按鈕調的亮度 Windows 不知道。滑鼠停在島上時也會短暫換成提示。右鍵「音量亮度提示」可關掉。Windows 內建的提示框目前**無法隱藏**(這個 Windows 11 版本的提示框不是獨立視窗,沒有穩定的方法)。 |
 | 播放分頁 | 封面、歌名、歌手、來源(Chrome、Spotify…)、進度條、上一首/播放暫停/下一首,以及**系統音量**滑桿(可拖曳、點擊跳到該位置、滾輪 ±2;左邊喇叭圖示切換靜音;用鍵盤音量鍵調整時滑桿會跟著動)。沒有播放時顯示「目前沒有正在播放的媒體」。 |
 | 固定展開時點島以外的任何地方 | 收合(回到隱藏)。點島裡面(分頁、檔案)不會收。 |
@@ -81,9 +83,9 @@ dotnet publish src\Island.App -c Release -r win-x64 --self-contained false -o pu
   "softwareRendering": true,
   "announceActivity": true,
   "showOsd": true,
-  "liveOrder": ["media", "timer", "weather", "shelf"],
+  "liveOrder": ["media", "timer", "battery", "weather", "shelf"],
   "liveHidden": [],
-  "modules": ["clock", "weather", "timer", "media", "shelf", "osd"],
+  "modules": ["clock", "weather", "timer", "media", "shelf", "osd", "battery"],
   "disabledModules": []
 }
 ```
@@ -151,6 +153,9 @@ src/
       WeatherData.cs             解析 Open-Meteo JSON、WMO 天氣代碼 → 文字 / 單色符號(Segoe UI Symbol)
       WeatherView.xaml(.cs)      天氣分頁
       WeatherAlertView.cs        下雨提醒的一排
+    Island.Modules.Battery/
+      BatteryModule.cs           GetSystemPowerStatus + SystemEvents.PowerModeChanged(StatusChange):插拔、充飽、低電量
+      BatteryViews.cs            提示的一排、電量環小圓(Segoe 電池圖示)
     Island.Modules.Osd/
       OsdModule.cs               音量 / 亮度提示(沒有展開畫面,只用 Announce)
       OsdView.cs                 圖示 + 長條 + 數字
@@ -166,6 +171,9 @@ src/
       ShelfModule.cs             清單、拖入/拖出、保存、Badge
       ShelfView.xaml(.cs)        展開畫面:圖示格狀清單、標題列、空白提示
       ShelfItem.cs               一個項目(路徑、名稱、圖示)
+      ScreenshotWatcher.cs       FileSystemWatcher 監看 Known Folder「Screenshots」,只收 20 秒內新建的圖片
+      ScreenshotToastView.cs     截圖提示的一排(縮圖)
+      ShelfOptions.cs            modules\shelf\options.json(captureScreenshots)
       ShellIcons.cs              SHGetFileInfo 取得檔案總管圖示
 ```
 
@@ -360,6 +368,16 @@ dotnet-counters monitor -n Island --counters System.Runtime
 |---|---|---|
 | 計時中、膠囊隱藏(只更新看得到的畫面) | **63 ms / 60 s** | 46.0 MB |
 | 計時中、膠囊隱藏(第一版:隱藏時也每秒更新) | 281 ms / 60 s | 43.7 MB |
+
+## 電量與截圖驗收(實機)
+
+| 項目 | 結果 |
+|---|---|
+| 電量偵測 | ✅ log:100% 插電;充電到 99% 時滑鼠移過去出現綠色電量環「99」 |
+| 插拔電源提示 | 未實測(需要實際拔插充電線) |
+| 截圖自動放進 Shelf | ✅ 在 `OneDrive\圖片\Screenshots` 放一張新圖 → 膠囊「縮圖 + 截圖已放進 Shelf」,約 3 秒後隱藏,Shelf 多 1 個 |
+| 截圖檔被刪掉 | ✅ 打開 Shelf 分頁時自動從清單移除 |
+| 閒置 60 秒(加入電量 + 截圖監看後,沒換歌) | 31 ms CPU、43 MB、18 執行緒 |
 
 ## 多個即時狀態驗收(實機)
 

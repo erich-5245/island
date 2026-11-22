@@ -11,9 +11,10 @@ namespace Island.Modules.Shelf;
 /// <summary>
 /// Shelf(檔案暫存架):把檔案拖到膠囊上暫放,之後再從展開畫面拖到別的地方。
 /// 只保存路徑(不複製檔案),清單存在 %LOCALAPPDATA%\Island\modules\shelf\shelf.json。
-/// 閒置時不做任何事:沒有計時器、沒有檔案監看;展開時才檢查檔案是否還存在。
+/// 閒置時不做任何事:沒有計時器;展開時才檢查檔案是否還存在。
+/// 截圖(Win+Shift+S 自動存檔)會自動放進 Shelf,膠囊跳出提示(modules\shelf\options.json 可關閉)。
 /// </summary>
-public sealed class ShelfModule : IslandModuleBase, IIslandDropTarget, IIslandExpandAware, IIslandCompact
+public sealed class ShelfModule : IslandModuleBase, IIslandDropTarget, IIslandExpandAware, IIslandCompact, IIslandActivity
 {
     private static readonly JsonSerializerOptions JsonOptions = new() { WriteIndented = true };
 
@@ -27,12 +28,59 @@ public sealed class ShelfModule : IslandModuleBase, IIslandDropTarget, IIslandEx
 
     public ObservableCollection<ShelfItem> Items { get; } = [];
 
+    // ── 截圖自動放進 Shelf ───────────────────────────────
+    private static readonly TimeSpan ToastDuration = TimeSpan.FromSeconds(3);
+    private readonly ScreenshotWatcher _screenshots = new();
+    private ScreenshotToastView? _toast;
+    private DispatcherTimer? _toastTimer;
+    private bool _toastActive;
+
+    public event EventHandler? ActivityChanged;
+    public bool IsActivityActive => _toastActive;
+    public FrameworkElement CreateActivityView() => _toast ??= new ScreenshotToastView();
+
     protected override void OnInitialize()
     {
         _storeFile = Path.Combine(Host.GetModuleDataDirectory(Id), "shelf.json");
         Load();
         PruneMissing(save: true);
         UpdateBadge();
+
+        if (ShelfOptions.Load(Host.GetModuleDataDirectory(Id)).CaptureScreenshots)
+        {
+            _toastTimer = new DispatcherTimer(DispatcherPriority.Background, Host.Dispatcher) { Interval = ToastDuration + TimeSpan.FromMilliseconds(300) };
+            _toastTimer.Tick += (_, _) => { _toastTimer.Stop(); SetToast(false); };
+            _screenshots.Captured += path => Host.Dispatcher.BeginInvoke(() => OnScreenshot(path));
+            bool ok = _screenshots.Start();
+            Host.Log(ok ? $"Shelf:監看截圖資料夾 {_screenshots.Folder}" : "Shelf:找不到截圖資料夾,截圖不會自動加入");
+        }
+    }
+
+    private void OnScreenshot(string path)
+    {
+        int before = Items.Count;
+        Add([path]);
+        if (Items.Count == before) return;   // 已經在 Shelf 裡
+        _toast ??= new ScreenshotToastView();
+        _toast.Show(path, Items.Count);
+        SetToast(true);
+        Host.Announce(Id, ToastDuration);
+        _toastTimer!.Stop();
+        _toastTimer.Start();
+    }
+
+    private void SetToast(bool active)
+    {
+        if (_toastActive == active) return;
+        _toastActive = active;
+        ActivityChanged?.Invoke(this, EventArgs.Empty);
+    }
+
+    public override void Dispose()
+    {
+        _toastTimer?.Stop();
+        _screenshots.Dispose();
+        base.Dispose();
     }
 
     public override FrameworkElement CreateExpandedView() => _view ??= new ShelfView(this);
