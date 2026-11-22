@@ -33,6 +33,15 @@
 
 Shelf 只記住檔案**路徑**,不會複製檔案。清單存在 `%LOCALAPPDATA%\Island\modules\shelf\shelf.json`,重新啟動後保留;已經不存在的檔案會在展開時自動移除。收合時膠囊右側顯示「Shelf N」。
 
+## 圖示
+
+<img src="src/Island.App/Assets/Island-512.png" width="96" align="right" />
+
+俯瞰的環礁:深藍色的海上,一圈金色沙灘圍成**膠囊形狀**的潟湖(也就是 Island 本身的形狀),沙灘上有椰子樹、潟湖裡有一艘小船。32 px 以下另外畫簡化版(只留海、金色膠囊和一棵椰子樹),工作列上才不會糊掉。
+
+- 圖示檔:`src/Island.App/Assets/Island.ico`(16、20、24、32、40、48、64、96、128、256 px,PNG 壓縮),同時是 exe 圖示和設定視窗的圖示。
+- 原始碼:`tools/icon/AtollIcons.cs`(用 System.Drawing 畫,另外保留黑金、霧青兩組配色);重新產生:`powershell -ExecutionPolicy Bypass -File tools\icon\make-icon.ps1`。
+
 ## 外觀
 
 - **出現 / 隱藏動畫**:隱藏時整列(小圓 + 膠囊,或展開的面板)維持原樣**往上滑出螢幕**(230 ms,加速離開),看不見之後才重設成收合狀態;出現時直接以目標大小**從螢幕上方滑下來**(320 ms,帶一點回彈)。滑到一半又把滑鼠移回來,會直接滑回來。島本來就看得到時(例如預覽變展開)仍然是放大/縮小的動畫。

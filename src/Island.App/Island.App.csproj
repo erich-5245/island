@@ -5,6 +5,8 @@
     <AssemblyName>Island</AssemblyName>
     <RootNamespace>Island.App</RootNamespace>
     <ApplicationManifest>app.manifest</ApplicationManifest>
+    <!-- 圖示:tools\icon\make-icon.ps1 產生(俯瞰環礁,深藍海 + 金色島) -->
+    <ApplicationIcon>Assets\Island.ico</ApplicationIcon>
 
     <!-- 效能:閒置程式不需要背景 GC 執行緒;Workstation GC 記憶體較省 -->
     <ServerGarbageCollection>false</ServerGarbageCollection>
@@ -12,6 +14,10 @@
     <TieredPGO>true</TieredPGO>
     <UseSystemResourceKeys>true</UseSystemResourceKeys>
   </PropertyGroup>
+
+  <ItemGroup>
+    <Resource Include="Assets\Island.ico" />
+  </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\Island.Core\Island.Core.csproj" />
