@@ -47,7 +47,7 @@
         </Grid.RowDefinitions>
 
         <!-- 標題列:數量(拖曳這裡 = 全部拖出) | 清除 -->
-        <DockPanel x:Name="Header" Grid.Row="0" Margin="2,0,0,4" LastChildFill="False">
+        <DockPanel x:Name="Header" Grid.Row="0" Margin="0,0,0,2" LastChildFill="False">
             <Border x:Name="DragAllHandle" DockPanel.Dock="Left" Background="Transparent" CornerRadius="8"
                     Padding="6,2" Cursor="Hand" Style="{StaticResource Tile}"
                     ToolTip="拖曳這裡可一次拖出全部項目"
@@ -73,7 +73,7 @@
                 </ItemsControl.ItemsPanel>
                 <ItemsControl.ItemTemplate>
                     <DataTemplate>
-                        <Border Width="80" Height="74" Margin="1" CornerRadius="10" Padding="4,6,4,4"
+                        <Border Width="68" Height="62" Margin="1" CornerRadius="9" Padding="4,5,4,3"
                                 Style="{StaticResource Tile}"
                                 ToolTip="{Binding Path}"
                                 MouseLeftButtonDown="OnTileMouseDown">
@@ -86,11 +86,11 @@
                                 </ContextMenu>
                             </Border.ContextMenu>
                             <StackPanel>
-                                <Image Source="{Binding Icon}" Width="32" Height="32"
+                                <Image Source="{Binding Icon}" Width="28" Height="28"
                                        RenderOptions.BitmapScalingMode="HighQuality" />
-                                <TextBlock Text="{Binding Name}" FontSize="11" Foreground="White"
-                                           TextAlignment="Center" TextWrapping="Wrap" TextTrimming="CharacterEllipsis"
-                                           MaxHeight="30" Margin="0,4,0,0" />
+                                <TextBlock Text="{Binding Name}" FontSize="10.5" Foreground="White"
+                                           TextAlignment="Center" TextTrimming="CharacterEllipsis"
+                                           Margin="0,5,0,0" />
                             </StackPanel>
                         </Border>
                     </DataTemplate>
@@ -100,11 +100,11 @@
 
         <!-- 空的時候 -->
         <StackPanel x:Name="EmptyState" Grid.Row="0" Grid.RowSpan="2"
-                    HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0,0,0,10">
-            <TextBlock Text="&#xE896;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="22"
+                    HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0,0,0,6">
+            <TextBlock Text="&#xE896;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="18"
                        Foreground="{StaticResource Secondary}" HorizontalAlignment="Center" />
-            <TextBlock Text="把檔案拖到這裡暫放" FontSize="12.5" Foreground="{StaticResource Secondary}"
-                       HorizontalAlignment="Center" Margin="0,8,0,0" />
+            <TextBlock Text="把檔案拖到這裡暫放" FontSize="12" Foreground="{StaticResource Secondary}"
+                       HorizontalAlignment="Center" Margin="0,6,0,0" />
         </StackPanel>
     </Grid>
 </UserControl>

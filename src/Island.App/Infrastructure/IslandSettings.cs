@@ -18,6 +18,16 @@ internal sealed class IslandSettings
     /// <summary>膠囊上緣離螢幕頂端的距離(DIP,100% 縮放下的像素)。</summary>
     public double TopOffset { get; set; } = 8;
 
+    // ── 尺寸(DIP,100% 縮放下的像素) ─────────────────────
+    /// <summary>平常(收合)的膠囊:只顯示時間與小提示。</summary>
+    public double CollapsedWidth { get; set; } = 200;
+    public double CollapsedHeight { get; set; } = 36;
+    /// <summary>滑鼠移過去時變寬成一排字(高度不變)。</summary>
+    public double PeekWidth { get; set; } = 320;
+    /// <summary>點擊後展開的大小。</summary>
+    public double ExpandedWidth { get; set; } = 380;
+    public double ExpandedHeight { get; set; } = 170;
+
     /// <summary>
     /// true = 使用軟體算圖(不建立 Direct3D 裝置,記憶體較省;膠囊一分鐘才重畫一次,影響可忽略)。
     /// 之後若展開動畫不夠順,可改成 false 使用 GPU。
@@ -47,7 +57,12 @@ internal sealed class IslandSettings
             {
                 var json = File.ReadAllText(AppPaths.SettingsFile);
                 var settings = JsonSerializer.Deserialize<IslandSettings>(json, JsonOptions);
-                if (settings is not null) return settings;
+                if (settings is not null)
+                {
+                    settings.Normalize();
+                    settings.Save();   // 把新版本新增的欄位補進檔案,方便手動修改
+                    return settings;
+                }
             }
         }
         catch (Exception ex)
@@ -59,6 +74,16 @@ internal sealed class IslandSettings
         var defaults = new IslandSettings();
         defaults.Save();
         return defaults;
+    }
+
+    /// <summary>修正不合理的尺寸(太小、預覽比收合窄…)。</summary>
+    private void Normalize()
+    {
+        CollapsedWidth = Math.Clamp(CollapsedWidth, 80, 600);
+        CollapsedHeight = Math.Clamp(CollapsedHeight, 20, 80);
+        PeekWidth = Math.Clamp(PeekWidth, CollapsedWidth, 900);
+        ExpandedWidth = Math.Clamp(ExpandedWidth, CollapsedWidth, 1200);
+        ExpandedHeight = Math.Clamp(ExpandedHeight, CollapsedHeight, 800);
     }
 
     public void Save()

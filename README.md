@@ -9,8 +9,8 @@
 
 | 動作 | 結果 |
 |---|---|
-| 滑鼠移到膠囊上 | 膠囊稍微放大(200×36 → 210×38) |
-| 左鍵點膠囊 | 展開成 440×230,上方有模組分頁(時間/Shelf) |
+| 滑鼠移到膠囊上 | 變寬成「一排字」(200 → 320 寬,高度不變):左邊日期、中間時間、右邊 Shelf 數量 |
+| 左鍵點膠囊 | 展開成 380×170,上方有模組分頁(時間/Shelf) |
 | 滑鼠離開展開的島約 0.7 秒 | 自動收合 |
 | 把檔案拖到膠囊上 | 自動展開並切到 Shelf,邊框亮起;放開即加入 |
 | Shelf:拖曳某個檔案 | 拖到其他程式。行為和從檔案總管拖曳一樣:同一個磁碟預設是移動,不同磁碟是複製,可按 Ctrl/Shift 切換。檔案被移走後會自動從 Shelf 移除。 |
@@ -52,6 +52,11 @@ dotnet publish src\Island.App -c Release -r win-x64 --self-contained false -o pu
 {
   "display": "primary",
   "topOffset": 8,
+  "collapsedWidth": 200,
+  "collapsedHeight": 36,
+  "peekWidth": 320,
+  "expandedWidth": 380,
+  "expandedHeight": 170,
   "softwareRendering": true,
   "modules": ["clock", "shelf"],
   "disabledModules": []
@@ -62,6 +67,9 @@ dotnet publish src\Island.App -c Release -r win-x64 --self-contained false -o pu
 |---|---|
 | `display` | `"primary"` = 跟著 Windows 主螢幕(預設)。或填裝置名稱,例如 `"\\\\.\\DISPLAY2"`,實際名稱請看 `island.log` 裡的「定位到 …」那一行。指定的螢幕不存在時自動退回主螢幕。 |
 | `topOffset` | 膠囊離螢幕頂端的距離(DIP,100% 縮放時的像素)。 |
+| `collapsedWidth` / `collapsedHeight` | 平常的膠囊大小(只顯示時間) |
+| `peekWidth` | 滑鼠移過去時變寬到多少(一排字,高度同收合) |
+| `expandedWidth` / `expandedHeight` | 點擊展開後的大小(NUSA 展開約 400×175) |
 | `softwareRendering` | `true` = 軟體算圖,不建立 Direct3D 裝置,記憶體約省一半(見下方數據)。之後展開動畫若不順可改成 `false`。 |
 | `modules` | 模組順序。第一個有收合畫面的模組放在膠囊中央;沒列出但有找到的模組會排在後面。 |
 | `disabledModules` | 要停用的模組 Id。 |
@@ -93,6 +101,7 @@ src/
     IIslandHost.cs               外殼提供給模組的服務(Dispatcher、資料夾、log、Expand/Collapse/HoldExpanded)
     IIslandDropTarget.cs         選用:接收拖到膠囊上的東西(CanAccept / Accept)
     IIslandExpandAware.cs        選用:展開畫面顯示/隱藏時收到通知
+    IIslandPeekProvider.cs       選用:滑鼠移過去(一排字)時左側的內容,Clock 用它顯示日期
     IslandModuleBase.cs          模組基底類別(SetBadge 會自動通知外殼)
   Modules/
     Directory.Build.props        所有模組自動引用 Island.Core

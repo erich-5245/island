@@ -15,14 +15,14 @@ namespace Island.App;
 
 public partial class MainWindow : Window, IShellController
 {
-    // ── 尺寸與動畫(DIP) ─────────────────────────────────
-    private static readonly Size CollapsedSize = new(200, 36);
-    private static readonly Size HoverSize = new(210, 38);
-    private static readonly Size ExpandedSize = new(440, 230);   // = ExpandedLayer 438×228 + 邊框
-    private const double CollapsedRadius = 18;
-    private const double ExpandedRadius = 26;
+    // ── 尺寸與動畫(DIP;尺寸來自 settings.json) ─────────
+    // 三段:收合(只有時間)→ 滑鼠移過去「預覽」(變寬成一排字)→ 點擊「展開」
+    private readonly Size _collapsedSize;
+    private readonly Size _peekSize;
+    private readonly Size _expandedSize;
+    private const double ExpandedRadius = 24;
 
-    private static readonly Duration HoverDuration = new(TimeSpan.FromMilliseconds(140));
+    private static readonly Duration PeekDuration = new(TimeSpan.FromMilliseconds(200));
     private static readonly Duration ExpandDuration = new(TimeSpan.FromMilliseconds(340));
     private static readonly Duration CollapseDuration = new(TimeSpan.FromMilliseconds(260));
 
@@ -55,6 +55,20 @@ public partial class MainWindow : Window, IShellController
         _settings = settings;
         _modules = modules;
         InitializeComponent();
+
+        _collapsedSize = new Size(settings.CollapsedWidth, settings.CollapsedHeight);
+        _peekSize = new Size(settings.PeekWidth, settings.CollapsedHeight);
+        _expandedSize = new Size(settings.ExpandedWidth, settings.ExpandedHeight);
+
+        Capsule.Width = _collapsedSize.Width;
+        Capsule.Height = _collapsedSize.Height;
+        Capsule.CornerRadius = new CornerRadius(_collapsedSize.Height / 2);
+        CollapsedLayer.Height = _collapsedSize.Height - 2;              // 扣掉 1px 邊框
+        ExpandedLayer.Width = _expandedSize.Width - 2;                  // 固定為展開尺寸,放大時像揭開
+        ExpandedLayer.Height = _expandedSize.Height - 2;
+        // 視窗要比展開後的島大一點(預留動畫回彈空間)
+        Width = Math.Max(Width, Math.Max(_peekSize.Width, _expandedSize.Width) + 60);
+        Height = Math.Max(Height, _expandedSize.Height + 60);
 
         _leaveTimer = new DispatcherTimer(DispatcherPriority.Background) { Interval = LeaveCheckInterval };
         _leaveTimer.Tick += OnLeaveTimerTick;
@@ -130,6 +144,11 @@ public partial class MainWindow : Window, IShellController
     {
         CenterSlot.Content = _modules
             .Select(m => SafeCreate(m, () => m.CreateCollapsedView()))
+            .FirstOrDefault(v => v is not null);
+
+        LeftSlot.Content = _modules
+            .OfType<IIslandPeekProvider>()
+            .Select(p => SafeCreate((IIslandModule)p, p.CreatePeekView))
             .FirstOrDefault(v => v is not null);
 
         foreach (var m in _modules) m.BadgeChanged += (_, _) => RefreshBadges();
@@ -226,7 +245,7 @@ public partial class MainWindow : Window, IShellController
         _expanded = true;
         ExpandedLayer.Visibility = Visibility.Visible;
         Capsule.CornerRadius = new CornerRadius(ExpandedRadius);
-        AnimateSize(ExpandedSize, ExpandDuration, new BackEase { Amplitude = 0.25, EasingMode = EasingMode.EaseOut });
+        AnimateSize(_expandedSize, ExpandDuration, new BackEase { Amplitude = 0.2, EasingMode = EasingMode.EaseOut });
         Fade(CollapsedLayer, 0, TimeSpan.FromMilliseconds(90));
         Fade(ExpandedLayer, 1, TimeSpan.FromMilliseconds(200), TimeSpan.FromMilliseconds(90));
         _leaveTimer.Start();
@@ -242,10 +261,13 @@ public partial class MainWindow : Window, IShellController
         _leaveTimer.Stop();
         _dragInside = false;
         Capsule.BorderBrush = Brushes.Transparent;
-        Capsule.CornerRadius = new CornerRadius(CollapsedRadius);
+        Capsule.CornerRadius = new CornerRadius(_collapsedSize.Height / 2);
 
-        AnimateSize(IsCursorOverCapsule() ? HoverSize : CollapsedSize, CollapseDuration,
+        // 滑鼠還在島上 → 回到「預覽」一排字;否則回到收合
+        bool peek = IsCursorOverCapsule();
+        AnimateSize(peek ? _peekSize : _collapsedSize, CollapseDuration,
             new QuarticEase { EasingMode = EasingMode.EaseOut });
+        Fade(LeftSlot, peek ? 1 : 0, TimeSpan.FromMilliseconds(1));
         Fade(ExpandedLayer, 0, TimeSpan.FromMilliseconds(110), completed: () =>
         {
             if (!_expanded) ExpandedLayer.Visibility = Visibility.Collapsed;
@@ -308,15 +330,21 @@ public partial class MainWindow : Window, IShellController
 
     // ── 滑鼠 ─────────────────────────────────────────────
 
+    // 滑鼠移過去:變寬成「一排字」(左側淡入日期等預覽內容);移開:回到收合。點擊才展開。
+
     private void OnCapsuleMouseEnter(object sender, MouseEventArgs e)
     {
         _outsideTicks = 0;
-        if (!_expanded) AnimateSize(HoverSize, HoverDuration, new CubicEase { EasingMode = EasingMode.EaseOut });
+        if (_expanded) return;
+        AnimateSize(_peekSize, PeekDuration, new CubicEase { EasingMode = EasingMode.EaseOut });
+        Fade(LeftSlot, 1, TimeSpan.FromMilliseconds(160), TimeSpan.FromMilliseconds(60));
     }
 
     private void OnCapsuleMouseLeave(object sender, MouseEventArgs e)
     {
-        if (!_expanded) AnimateSize(CollapsedSize, HoverDuration, new CubicEase { EasingMode = EasingMode.EaseOut });
+        if (_expanded) return;
+        AnimateSize(_collapsedSize, PeekDuration, new CubicEase { EasingMode = EasingMode.EaseOut });
+        Fade(LeftSlot, 0, TimeSpan.FromMilliseconds(90));
     }
 
     private void OnCapsuleClick(object sender, MouseButtonEventArgs e)

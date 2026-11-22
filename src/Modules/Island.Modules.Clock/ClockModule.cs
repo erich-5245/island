@@ -14,7 +14,7 @@ namespace Island.Modules.Clock;
 /// 每分鐘醒來一次更新文字,其餘時間完全不佔 CPU。
 /// 系統時間被修改或從睡眠喚醒時立即校正。
 /// </summary>
-public sealed class ClockModule : IslandModuleBase
+public sealed class ClockModule : IslandModuleBase, IIslandPeekProvider
 {
     private const string Format = "HH:mm";
 
@@ -25,6 +25,7 @@ public sealed class ClockModule : IslandModuleBase
     private TextBlock? _collapsedText;
     private TextBlock? _expandedTime;
     private TextBlock? _expandedDate;
+    private TextBlock? _peekDate;
 
     public override string Id => "clock";
     public override string Title => "時間";
@@ -53,10 +54,23 @@ public sealed class ClockModule : IslandModuleBase
         return _collapsedText;
     }
 
+    /// <summary>滑鼠移到膠囊上時,左側顯示的日期。</summary>
+    public FrameworkElement CreatePeekView()
+    {
+        _peekDate = new TextBlock
+        {
+            FontSize = 12,
+            Foreground = new SolidColorBrush(Color.FromRgb(0xB0, 0xB0, 0xB0)),
+            VerticalAlignment = VerticalAlignment.Center,
+            TextTrimming = TextTrimming.CharacterEllipsis,
+        };
+        UpdateText(DateTime.Now);
+        return _peekDate;
+    }
+
     public override FrameworkElement CreateExpandedView()
     {
-        // 第 1 階段外殼尚未使用,先提供基本內容
-        _expandedTime = new TextBlock { FontSize = 40, FontWeight = FontWeights.SemiBold, Foreground = Brushes.White };
+        _expandedTime = new TextBlock { FontSize = 34, FontWeight = FontWeights.SemiBold, Foreground = Brushes.White };
         Typography.SetNumeralAlignment(_expandedTime, FontNumeralAlignment.Tabular);
         _expandedDate = new TextBlock { FontSize = 13, Foreground = new SolidColorBrush(Color.FromRgb(0x9A, 0x9A, 0x9A)) };
         _expandedTime.HorizontalAlignment = HorizontalAlignment.Center;
@@ -65,7 +79,7 @@ public sealed class ClockModule : IslandModuleBase
         {
             HorizontalAlignment = HorizontalAlignment.Center,
             VerticalAlignment = VerticalAlignment.Center,
-            Margin = new Thickness(0, 0, 0, 12),
+            Margin = new Thickness(0, 0, 0, 6),
         };
         panel.Children.Add(_expandedTime);
         panel.Children.Add(_expandedDate);
@@ -91,6 +105,7 @@ public sealed class ClockModule : IslandModuleBase
         if (_collapsedText is not null && _collapsedText.Text != text) _collapsedText.Text = text;
         if (_expandedTime is not null) _expandedTime.Text = text;
         if (_expandedDate is not null) _expandedDate.Text = now.ToString("M月d日 dddd", CultureInfo.CurrentCulture);
+        if (_peekDate is not null) _peekDate.Text = now.ToString("M/d ddd", CultureInfo.CurrentCulture);
     }
 
     private void OnTimeChanged(object? sender, EventArgs e) => Host.Dispatcher.BeginInvoke(Refresh);
