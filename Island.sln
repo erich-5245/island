@@ -23,6 +23,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Island.Modules.Osd", "src\M
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Island.Modules.Weather", "src\Modules\Island.Modules.Weather\Island.Modules.Weather.csproj", "{50F822F2-96F4-4490-A2D8-2078ED34B089}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Island.Modules.Battery", "src\Modules\Island.Modules.Battery\Island.Modules.Battery.csproj", "{316087B0-9AAF-424F-97E2-F18849B54435}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -129,6 +131,18 @@ Global
 		{50F822F2-96F4-4490-A2D8-2078ED34B089}.Release|x64.Build.0 = Release|Any CPU
 		{50F822F2-96F4-4490-A2D8-2078ED34B089}.Release|x86.ActiveCfg = Release|Any CPU
 		{50F822F2-96F4-4490-A2D8-2078ED34B089}.Release|x86.Build.0 = Release|Any CPU
+		{316087B0-9AAF-424F-97E2-F18849B54435}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{316087B0-9AAF-424F-97E2-F18849B54435}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{316087B0-9AAF-424F-97E2-F18849B54435}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{316087B0-9AAF-424F-97E2-F18849B54435}.Debug|x64.Build.0 = Debug|Any CPU
+		{316087B0-9AAF-424F-97E2-F18849B54435}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{316087B0-9AAF-424F-97E2-F18849B54435}.Debug|x86.Build.0 = Debug|Any CPU
+		{316087B0-9AAF-424F-97E2-F18849B54435}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{316087B0-9AAF-424F-97E2-F18849B54435}.Release|Any CPU.Build.0 = Release|Any CPU
+		{316087B0-9AAF-424F-97E2-F18849B54435}.Release|x64.ActiveCfg = Release|Any CPU
+		{316087B0-9AAF-424F-97E2-F18849B54435}.Release|x64.Build.0 = Release|Any CPU
+		{316087B0-9AAF-424F-97E2-F18849B54435}.Release|x86.ActiveCfg = Release|Any CPU
+		{316087B0-9AAF-424F-97E2-F18849B54435}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -142,5 +156,6 @@ Global
 		{79FC634E-2A40-47C6-9BA6-03357FF3D650} = {CA253913-39DE-BFD0-C9A3-4B7EC6FBDF17}
 		{F4D0CC27-0668-4165-BD01-7EA0ED32E0A6} = {CA253913-39DE-BFD0-C9A3-4B7EC6FBDF17}
 		{50F822F2-96F4-4490-A2D8-2078ED34B089} = {CA253913-39DE-BFD0-C9A3-4B7EC6FBDF17}
+		{316087B0-9AAF-424F-97E2-F18849B54435} = {CA253913-39DE-BFD0-C9A3-4B7EC6FBDF17}
 	EndGlobalSection
 EndGlobal

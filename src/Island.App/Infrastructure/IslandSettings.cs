@@ -56,13 +56,13 @@ internal sealed class IslandSettings
     /// 滑鼠移過去時「即時狀態」的優先順序:第一個有活動的放中間長條,
     /// 其餘有東西可看的(最多兩個)放左右小圓。沒列出的模組排在後面。
     /// </summary>
-    public List<string> LiveOrder { get; set; } = ["media", "timer", "weather", "shelf"];
+    public List<string> LiveOrder { get; set; } = ["media", "timer", "battery", "weather", "shelf"];
 
     /// <summary>不要放進小圓的模組 Id(例如 ["shelf"])。</summary>
     public List<string> LiveHidden { get; set; } = [];
 
     /// <summary>模組排列順序。沒列出但有找到的模組會排在後面。</summary>
-    public List<string> Modules { get; set; } = ["clock", "weather", "timer", "media", "shelf", "osd"];
+    public List<string> Modules { get; set; } = ["clock", "weather", "timer", "media", "shelf", "osd", "battery"];
 
     /// <summary>要停用的模組 Id。</summary>
     public List<string> DisabledModules { get; set; } = [];
