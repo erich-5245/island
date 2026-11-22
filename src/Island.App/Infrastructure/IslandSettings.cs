@@ -28,6 +28,12 @@ internal sealed class IslandSettings
     public double ExpandedWidth { get; set; } = 380;
     public double ExpandedHeight { get; set; } = 170;
 
+    /// <summary>
+    /// true = 平常完全隱藏,滑鼠推到螢幕上緣中間(熱區)才出現;
+    /// false = 平常顯示只有時間的小膠囊。右鍵選單可切換。
+    /// </summary>
+    public bool HideWhenIdle { get; set; } = true;
+
     /// <summary>島所在的螢幕有全螢幕程式(影片、遊戲、簡報)時自動隱藏。右鍵選單可切換。</summary>
     public bool HideInFullscreen { get; set; } = true;
 

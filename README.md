@@ -9,10 +9,11 @@
 
 | 動作 | 結果 |
 |---|---|
-| 滑鼠移到膠囊上 | 變寬成「一排字」(200 → 320 寬,高度不變):左邊日期、中間時間、右邊 Shelf 數量 |
-| 左鍵點膠囊 | 展開成 380×170,上方有模組分頁(時間/Shelf) |
-| 滑鼠離開展開的島約 0.7 秒 | 自動收合 |
-| 把檔案拖到膠囊上 | 自動展開並切到 Shelf,邊框亮起;放開即加入 |
+| 平常(閒置) | **完全隱藏**。螢幕最上緣中間留一條看不見的熱區(寬同收合膠囊、高 = topOffset + 4 DIP)。右鍵「閒置時隱藏」取消勾選 → 改成平常顯示只有時間的小膠囊。 |
+| 滑鼠推到螢幕上緣中間 / 移到膠囊上 | 出現「一排字」(320 寬):左邊日期、中間時間、右邊 Shelf 數量。滑鼠離開約 0.2 秒後再隱藏。 |
+| 左鍵點一下 | **固定展開**成 380×170,上方有模組分頁(時間/Shelf)。滑鼠移開也不會收。 |
+| 固定展開時點島以外的任何地方 | 收合(回到隱藏)。點島裡面(分頁、檔案)不會收。 |
+| 把檔案拖到螢幕上緣中間或膠囊上 | 自動展開並切到 Shelf,邊框亮起;放開即加入。拖曳造成的展開不固定,滑鼠離開約 0.7 秒後收合。 |
 | Shelf:拖曳某個檔案 | 拖到其他程式。行為和從檔案總管拖曳一樣:同一個磁碟預設是移動,不同磁碟是複製,可按 Ctrl/Shift 切換。檔案被移走後會自動從 Shelf 移除。 |
 | Shelf:拖曳左上角「≡ N 個項目」 | 一次拖出全部 |
 | Shelf:雙擊檔案 | 用預設程式開啟 |
@@ -60,6 +61,7 @@ dotnet publish src\Island.App -c Release -r win-x64 --self-contained false -o pu
   "peekWidth": 320,
   "expandedWidth": 380,
   "expandedHeight": 170,
+  "hideWhenIdle": true,
   "hideInFullscreen": true,
   "softwareRendering": true,
   "modules": ["clock", "shelf"],
@@ -74,6 +76,7 @@ dotnet publish src\Island.App -c Release -r win-x64 --self-contained false -o pu
 | `collapsedWidth` / `collapsedHeight` | 平常的膠囊大小(只顯示時間) |
 | `peekWidth` | 滑鼠移過去時變寬到多少(一排字,高度同收合) |
 | `expandedWidth` / `expandedHeight` | 點擊展開後的大小(NUSA 展開約 400×175) |
+| `hideWhenIdle` | `true` = 平常完全隱藏,滑鼠推到螢幕上緣中間才出現;`false` = 平常顯示小膠囊。右鍵選單「閒置時隱藏」會直接改這個值,立即生效。 |
 | `hideInFullscreen` | 膠囊所在螢幕有全螢幕程式時自動隱藏。右鍵選單的「全螢幕時隱藏」會直接改這個值,立即生效。 |
 | `softwareRendering` | `true` = 軟體算圖,不建立 Direct3D 裝置,記憶體約省一半(見下方數據)。之後展開動畫若不順可改成 `false`。 |
 | `modules` | 模組順序。第一個有收合畫面的模組放在膠囊中央;沒列出但有找到的模組會排在後面。 |
@@ -178,6 +181,8 @@ public sealed class XxxModule : IslandModuleBase
 | 維持最上層 | `SetWinEventHook(EVENT_SYSTEM_FOREGROUND)`:前景視窗一換就 `SetWindowPos(HWND_TOPMOST, SWP_NOACTIVATE)`。事件驅動,閒置時不耗資源。 |
 | 多螢幕與 DPI | Per-Monitor V2。位置以實體像素計算:`寬 = 640 DIP × 螢幕 DPI/96`,水平置中,`y = 螢幕頂端 + 8 × DPI/96`。 |
 | 全螢幕時隱藏 | 註冊成**不佔空間**的 AppBar(只 `ABM_NEW`,不 `ABM_SETPOS`)以收到系統的 `ABN_FULLSCREENAPP` 通知,再加上前景視窗切換事件,兩者都等 250 ms 讓視窗大小穩定後判斷一次,不輪詢。判斷:`SHQueryUserNotificationState` 回報 D3D 獨佔全螢幕/簡報模式;或依 Z 順序找出膠囊所在螢幕上最上面的一般視窗(略過工具視窗、被 DWM 隱藏的視窗、桌面與工作列),它蓋滿整個螢幕、且不是「有標題列的一般最大化」就算全螢幕。 |
+| 閒置隱藏 + 熱區 | 視窗貼齊螢幕頂端,膠囊用 Margin 往下 `topOffset`。閒置時膠囊 Opacity = 0(像素 alpha 0,系統直接讓滑鼠穿透);熱區是 alpha 1/255 的細條,看不見但收得到滑鼠與拖放。熱區與膠囊包在同一個 Grid 裡,滑鼠進出只看這個 Grid。 |
+| 點外面收合 | 不取得焦點的視窗收不到失焦事件,所以只在「固定展開」期間掛 `WH_MOUSE_LL`,收合時立刻卸下。掛勾裡只用 `WindowFromPoint` 判斷點到的視窗是不是本程式(膠囊、右鍵選單都算裡面),收合排到 UI 執行緒稍後執行。 |
 | 開機啟動 | `HKCU\...\Run`,值為 `"Island.exe 完整路徑"`。 |
 | 螢幕熱插拔 | `WM_DISPLAYCHANGE`、`WM_DPICHANGED`、`SystemEvents.DisplaySettingsChanged`、睡眠喚醒 → 400 ms 去抖動後定位,1.5 秒後再確認一次。拔掉外接螢幕時 Windows 會把筆電螢幕改成主螢幕,`"primary"` 模式自然會跟過去。 |
 
@@ -263,7 +268,20 @@ dotnet-counters monitor -n Island --counters System.Runtime
 | 無邊框最大化 | ✅ 隱藏 |
 | 右鍵 → 勾選「開機時啟動」 | ✅ `HKCU\...\Run\Island` 寫入 exe 路徑 |
 
+## 閒置隱藏 / 固定展開驗收(自動化測試,於 150% 的副螢幕執行,避開 NUSA)
+
+| 步驟 | 結果 |
+|---|---|
+| 閒置 | ✅ 膠囊位置點得穿(底下是 Word);只有最上緣的熱區屬於 Island |
+| 滑鼠推到上緣 | ✅ 出現一排字 |
+| 滑鼠離開 | ✅ 再度隱藏、點得穿 |
+| 點一下 → 滑鼠移開 1.8 秒 | ✅ 仍然展開,前景視窗沒被搶走 |
+| 點島外面的視窗 | ✅ 收合並隱藏 |
+
 ## 已知事項
+
+- 熱區會擋住螢幕最上緣中間一小塊(預設 200 × 12 DIP)的點擊,例如剛好在那裡的瀏覽器分頁的最上緣幾個像素。
+- NUSA 若還開著,它的膠囊也在螢幕上緣中間,會蓋住熱區(兩個都是 Topmost),請關掉 NUSA。
 
 - 全螢幕隱藏判斷的是「該螢幕上最上面的一般視窗」:全螢幕影片上方如果開了一個小視窗(例如在同一螢幕上跳出聊天視窗),膠囊會暫時出現,關掉小視窗就再隱藏。
 - 右鍵選單開啟時,選單本身可能短暫取得焦點(這是 WPF ContextMenu 的行為),關閉後就不會影響。

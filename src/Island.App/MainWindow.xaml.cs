@@ -16,7 +16,7 @@ namespace Island.App;
 public partial class MainWindow : Window, IShellController
 {
     // ── 尺寸與動畫(DIP;尺寸來自 settings.json) ─────────
-    // 三段:收合(只有時間)→ 滑鼠移過去「預覽」(變寬成一排字)→ 點擊「展開」
+    // 三段:閒置(隱藏,或只有時間的小膠囊)→ 滑鼠移過去「預覽」(一排字)→ 點擊「固定展開」
     private readonly Size _collapsedSize;
     private readonly Size _peekSize;
     private readonly Size _expandedSize;
@@ -31,6 +31,11 @@ public partial class MainWindow : Window, IShellController
     /// <summary>連續幾次確認滑鼠都不在島上才收合(≈ 0.7 秒)。</summary>
     private const int LeaveTicksToCollapse = 2;
 
+    /// <summary>滑鼠離開後等多久才隱藏(避免在熱區與膠囊之間移動時閃爍)。</summary>
+    private static readonly TimeSpan HideDelay = TimeSpan.FromMilliseconds(220);
+    /// <summary>熱區往下多蓋住膠囊上緣幾 DIP,讓滑鼠從熱區往下移時不會中斷。</summary>
+    private const double HotZoneOverlap = 4;
+
     private static readonly Brush DragHighlightBrush = Freeze(new SolidColorBrush(Color.FromArgb(0x66, 0xFF, 0xFF, 0xFF)));
 
     private readonly IslandSettings _settings;
@@ -38,6 +43,8 @@ public partial class MainWindow : Window, IShellController
     private readonly Dictionary<IIslandModule, FrameworkElement> _expandedViews = [];
     private readonly Dictionary<IIslandModule, RadioButton> _tabs = [];
     private readonly DispatcherTimer _leaveTimer;
+    private readonly DispatcherTimer _hideTimer;
+    private readonly OutsideClickWatcher _outsideClick;
     private bool _expandedViewsBuilt;
 
     private IntPtr _hwnd;
@@ -47,6 +54,8 @@ public partial class MainWindow : Window, IShellController
     private IntPtr _monitor;
 
     private bool _expanded;
+    private bool _pinned;       // 點擊展開 = 固定;滑鼠離開也不收,點外面才收
+    private bool _peeking;
     private IIslandModule? _active;
     private int _holdCount;
     private int _outsideTicks;
@@ -62,6 +71,12 @@ public partial class MainWindow : Window, IShellController
         _peekSize = new Size(settings.PeekWidth, settings.CollapsedHeight);
         _expandedSize = new Size(settings.ExpandedWidth, settings.ExpandedHeight);
 
+        // 視窗貼齊螢幕頂端,膠囊往下 TopOffset;中間的縫由熱區補滿
+        Capsule.Margin = new Thickness(0, settings.TopOffset, 0, 0);
+        HotZone.Width = _collapsedSize.Width;
+        HotZone.Height = settings.TopOffset + HotZoneOverlap;
+        ApplyIdleMode(animate: false);
+
         Capsule.Width = _collapsedSize.Width;
         Capsule.Height = _collapsedSize.Height;
         Capsule.CornerRadius = new CornerRadius(_collapsedSize.Height / 2);
@@ -70,13 +85,17 @@ public partial class MainWindow : Window, IShellController
         ExpandedLayer.Height = _expandedSize.Height - 2;
         // 視窗要比展開後的島大一點(預留動畫回彈空間)
         Width = Math.Max(Width, Math.Max(_peekSize.Width, _expandedSize.Width) + 60);
-        Height = Math.Max(Height, _expandedSize.Height + 60);
+        Height = Math.Max(Height, _expandedSize.Height + settings.TopOffset + 60);
 
         _leaveTimer = new DispatcherTimer(DispatcherPriority.Background) { Interval = LeaveCheckInterval };
         _leaveTimer.Tick += OnLeaveTimerTick;
+        _hideTimer = new DispatcherTimer(DispatcherPriority.Background) { Interval = HideDelay };
+        _hideTimer.Tick += OnHideTimerTick;
+        _outsideClick = new OutsideClickWatcher(Dispatcher, OnClickedOutside);
+        IslandRoot.ContextMenu.Closed += (_, _) => _hideTimer.Start();
 
         BuildCollapsedContent();
-        Closed += (_, _) => { _leaveTimer.Stop(); _topmost?.Dispose(); _displays?.Dispose(); _fullscreen?.Dispose(); };
+        Closed += (_, _) => { _leaveTimer.Stop(); _hideTimer.Stop(); _outsideClick.Dispose(); _topmost?.Dispose(); _displays?.Dispose(); _fullscreen?.Dispose(); };
     }
 
     // ── 視窗建立 ──────────────────────────────────────────
@@ -143,7 +162,7 @@ public partial class MainWindow : Window, IShellController
         int w = (int)Math.Round(Width * monitor.Scale);
         int h = (int)Math.Round(Height * monitor.Scale);
         int x = monitor.Bounds.Left + (monitor.Bounds.Width - w) / 2;
-        int y = monitor.Bounds.Top + (int)Math.Round(_settings.TopOffset * monitor.Scale);
+        int y = monitor.Bounds.Top;   // TopOffset 由膠囊的 Margin 負責(熱區要貼齊螢幕上緣)
 
         SetWindowPos(_hwnd, HWND_TOPMOST, x, y, w, h, SWP_NOACTIVATE | SWP_NOOWNERZORDER);
         Log.Write($"[{reason}] 定位到 {monitor} → 視窗 ({x},{y}) {w}x{h}");
@@ -161,6 +180,7 @@ public partial class MainWindow : Window, IShellController
         if (fullscreen)
         {
             Collapse(force: true);
+            GoIdle();
             Hide();
         }
         else if (!IsVisible)
@@ -176,6 +196,14 @@ public partial class MainWindow : Window, IShellController
     {
         AutoStartItem.IsChecked = AutoStart.IsEnabled;
         HideInFullscreenItem.IsChecked = _settings.HideInFullscreen;
+        HideWhenIdleItem.IsChecked = _settings.HideWhenIdle;
+    }
+
+    private void OnHideWhenIdleClick(object sender, RoutedEventArgs e)
+    {
+        _settings.HideWhenIdle = HideWhenIdleItem.IsChecked;
+        _settings.Save();
+        ApplyIdleMode(animate: true);
     }
 
     private void OnAutoStartClick(object sender, RoutedEventArgs e)
@@ -289,7 +317,7 @@ public partial class MainWindow : Window, IShellController
 
     // ── 展開 / 收合 ──────────────────────────────────────
 
-    private void Expand(IIslandModule? module)
+    private void Expand(IIslandModule? module, bool pin = false)
     {
         EnsureExpandedViews();
         module ??= _active ?? _expandedViews.Keys.FirstOrDefault();
@@ -297,9 +325,17 @@ public partial class MainWindow : Window, IShellController
 
         SwitchTo(module);
         _outsideTicks = 0;
+        _hideTimer.Stop();
+        if (pin && !_pinned)
+        {
+            _pinned = true;
+            _outsideClick.Start();
+        }
         if (_expanded) return;
 
         _expanded = true;
+        _peeking = false;
+        Fade(Capsule, 1, TimeSpan.FromMilliseconds(120));
         ExpandedLayer.Visibility = Visibility.Visible;
         Capsule.CornerRadius = new CornerRadius(ExpandedRadius);
         AnimateSize(_expandedSize, ExpandDuration, new BackEase { Amplitude = 0.2, EasingMode = EasingMode.EaseOut });
@@ -315,6 +351,8 @@ public partial class MainWindow : Window, IShellController
         if (_holdCount > 0 && !force) return;
 
         _expanded = false;
+        _pinned = false;
+        _outsideClick.Stop();
         _leaveTimer.Stop();
         _dragInside = false;
         Capsule.BorderBrush = Brushes.Transparent;
@@ -322,9 +360,12 @@ public partial class MainWindow : Window, IShellController
 
         // 滑鼠還在島上 → 回到「預覽」一排字;否則回到收合
         bool peek = IsCursorOverCapsule();
+        _peeking = peek;
         AnimateSize(peek ? _peekSize : _collapsedSize, CollapseDuration,
             new QuarticEase { EasingMode = EasingMode.EaseOut });
         Fade(LeftSlot, peek ? 1 : 0, TimeSpan.FromMilliseconds(1));
+        if (!peek && _settings.HideWhenIdle)
+            Fade(Capsule, 0, TimeSpan.FromMilliseconds(220), TimeSpan.FromMilliseconds(60));
         Fade(ExpandedLayer, 0, TimeSpan.FromMilliseconds(110), completed: () =>
         {
             if (!_expanded) ExpandedLayer.Visibility = Visibility.Collapsed;
@@ -336,7 +377,8 @@ public partial class MainWindow : Window, IShellController
     /// <summary>展開期間每 350ms 用 GetCursorPos 確認滑鼠位置;收合後計時器停止,閒置時零成本。</summary>
     private void OnLeaveTimerTick(object? sender, EventArgs e)
     {
-        bool stay = _holdCount > 0
+        bool stay = _pinned
+                    || _holdCount > 0
                     || _dragInside
                     || Mouse.Captured is not null      // 右鍵選單等彈出視窗開啟中
                     || IsCursorOverCapsule();
@@ -387,28 +429,67 @@ public partial class MainWindow : Window, IShellController
 
     // ── 滑鼠 ─────────────────────────────────────────────
 
-    // 滑鼠移過去:變寬成「一排字」(左側淡入日期等預覽內容);移開:回到收合。點擊才展開。
+    // 閒置:隱藏(或小膠囊)。滑鼠碰到熱區/膠囊 → 預覽一排字;離開 → 回到閒置。
+    // 點一下 → 固定展開(滑鼠移開也不收);點島以外任何地方才收合。
 
-    private void OnCapsuleMouseEnter(object sender, MouseEventArgs e)
+    private void OnIslandMouseEnter(object sender, MouseEventArgs e)
     {
         _outsideTicks = 0;
-        if (_expanded) return;
+        _hideTimer.Stop();
+        if (_expanded || _peeking) return;
+
+        _peeking = true;
+        Fade(Capsule, 1, TimeSpan.FromMilliseconds(140));
         AnimateSize(_peekSize, PeekDuration, new CubicEase { EasingMode = EasingMode.EaseOut });
         Fade(LeftSlot, 1, TimeSpan.FromMilliseconds(160), TimeSpan.FromMilliseconds(60));
     }
 
-    private void OnCapsuleMouseLeave(object sender, MouseEventArgs e)
+    private void OnIslandMouseLeave(object sender, MouseEventArgs e)
     {
         if (_expanded) return;
+        _hideTimer.Stop();
+        _hideTimer.Start();
+    }
+
+    private void OnHideTimerTick(object? sender, EventArgs e)
+    {
+        _hideTimer.Stop();
+        if (_expanded || IslandRoot.ContextMenu.IsOpen || IsCursorOverCapsule()) return;
+        GoIdle();
+    }
+
+    /// <summary>回到閒置:縮回收合大小;「閒置時隱藏」開啟時整個淡出(只剩看不見的熱區)。</summary>
+    private void GoIdle()
+    {
+        _peeking = false;
         AnimateSize(_collapsedSize, PeekDuration, new CubicEase { EasingMode = EasingMode.EaseOut });
         Fade(LeftSlot, 0, TimeSpan.FromMilliseconds(90));
+        if (_settings.HideWhenIdle) Fade(Capsule, 0, TimeSpan.FromMilliseconds(200));
+    }
+
+    private void ApplyIdleMode(bool animate)
+    {
+        bool hidden = _settings.HideWhenIdle && !_expanded && !_peeking;
+        if (animate)
+        {
+            Fade(Capsule, hidden ? 0 : 1, TimeSpan.FromMilliseconds(200));
+            return;
+        }
+        Capsule.BeginAnimation(OpacityProperty, null);
+        Capsule.Opacity = hidden ? 0 : 1;
     }
 
     private void OnCapsuleClick(object sender, MouseButtonEventArgs e)
     {
-        if (_expanded) return;
-        Expand(null);
+        if (_expanded && _pinned) return;   // 已固定:點裡面是在操作模組內容
+        Expand(null, pin: true);
         e.Handled = true;
+    }
+
+    private void OnClickedOutside()
+    {
+        if (!_pinned || _holdCount > 0) return;
+        Collapse();
     }
 
     // ── 拖放:交給第一個願意接收的模組 ───────────────────

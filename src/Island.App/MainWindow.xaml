@@ -49,28 +49,43 @@
       只有膠囊(不透明)會接收滑鼠與拖放。
     -->
     <Grid>
+      <!--
+        IslandRoot = 熱區 + 膠囊。滑鼠進出、拖放、右鍵選單都掛在這裡,
+        這樣在「隱藏」狀態下碰到熱區也能叫出膠囊。
+      -->
+      <Grid x:Name="IslandRoot"
+            HorizontalAlignment="Center" VerticalAlignment="Top"
+            AllowDrop="True"
+            MouseEnter="OnIslandMouseEnter"
+            MouseLeave="OnIslandMouseLeave"
+            DragEnter="OnCapsuleDragEnter"
+            DragOver="OnCapsuleDragOver"
+            DragLeave="OnCapsuleDragLeave"
+            Drop="OnCapsuleDrop">
+        <Grid.ContextMenu>
+            <ContextMenu Opened="OnContextMenuOpened">
+                <MenuItem x:Name="AutoStartItem" Header="開機時啟動" IsCheckable="True" Click="OnAutoStartClick" />
+                <MenuItem x:Name="HideInFullscreenItem" Header="全螢幕時隱藏" IsCheckable="True" Click="OnHideInFullscreenClick" />
+                <MenuItem x:Name="HideWhenIdleItem" Header="閒置時隱藏" IsCheckable="True" Click="OnHideWhenIdleClick" />
+                <Separator />
+                <MenuItem Header="結束" Click="OnExitClick" />
+            </ContextMenu>
+        </Grid.ContextMenu>
+
+        <!--
+          熱區:螢幕最上緣一條幾乎全透明(alpha 1/255,看不到但收得到滑鼠)的細條,
+          膠囊隱藏時把滑鼠推到螢幕上緣中間就會叫出膠囊。
+        -->
+        <Border x:Name="HotZone" Background="#01000000"
+                HorizontalAlignment="Center" VerticalAlignment="Top" />
+
         <Border x:Name="Capsule"
                 Width="200" Height="36"
                 HorizontalAlignment="Center" VerticalAlignment="Top"
                 CornerRadius="18"
                 Background="{StaticResource CapsuleBrush}"
                 BorderBrush="Transparent" BorderThickness="1"
-                AllowDrop="True"
-                MouseEnter="OnCapsuleMouseEnter"
-                MouseLeave="OnCapsuleMouseLeave"
-                MouseLeftButtonUp="OnCapsuleClick"
-                DragEnter="OnCapsuleDragEnter"
-                DragOver="OnCapsuleDragOver"
-                DragLeave="OnCapsuleDragLeave"
-                Drop="OnCapsuleDrop">
-            <Border.ContextMenu>
-                <ContextMenu Opened="OnContextMenuOpened">
-                    <MenuItem x:Name="AutoStartItem" Header="開機時啟動" IsCheckable="True" Click="OnAutoStartClick" />
-                    <MenuItem x:Name="HideInFullscreenItem" Header="全螢幕時隱藏" IsCheckable="True" Click="OnHideInFullscreenClick" />
-                    <Separator />
-                    <MenuItem Header="結束" Click="OnExitClick" />
-                </ContextMenu>
-            </Border.ContextMenu>
+                MouseLeftButtonUp="OnCapsuleClick">
 
             <Grid ClipToBounds="True">
                 <!-- 收合層:左(預留) | 中(主模組) | 右(各模組的小提示) -->
@@ -114,5 +129,6 @@
                 </Grid>
             </Grid>
         </Border>
+      </Grid>
     </Grid>
 </Window>
