@@ -32,12 +32,57 @@
                 </Setter.Value>
             </Setter>
         </Style>
+        <!-- 音量滑桿:細軌道 + 白色已填滿段 + 圓形把手 -->
+        <Style x:Key="FillRepeat" TargetType="RepeatButton">
+            <Setter Property="Focusable" Value="False" />
+            <Setter Property="IsTabStop" Value="False" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="RepeatButton">
+                        <Grid Background="Transparent">
+                            <Border Height="4" CornerRadius="2" Background="{TemplateBinding Background}" />
+                        </Grid>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <Style x:Key="VolumeSlider" TargetType="Slider">
+            <Setter Property="Focusable" Value="False" />
+            <Setter Property="Minimum" Value="0" />
+            <Setter Property="Maximum" Value="100" />
+            <Setter Property="IsMoveToPointEnabled" Value="True" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Slider">
+                        <Track x:Name="PART_Track" Height="16">
+                            <Track.DecreaseRepeatButton>
+                                <RepeatButton Style="{StaticResource FillRepeat}" Background="White" />
+                            </Track.DecreaseRepeatButton>
+                            <Track.IncreaseRepeatButton>
+                                <RepeatButton Style="{StaticResource FillRepeat}" Background="#333333" />
+                            </Track.IncreaseRepeatButton>
+                            <Track.Thumb>
+                                <Thumb Width="12" Height="12">
+                                    <Thumb.Template>
+                                        <ControlTemplate TargetType="Thumb">
+                                            <Ellipse Fill="White" />
+                                        </ControlTemplate>
+                                    </Thumb.Template>
+                                </Thumb>
+                            </Track.Thumb>
+                        </Track>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
     </UserControl.Resources>
 
     <Grid>
         <!-- 有播放中的媒體 -->
         <Grid x:Name="Body" VerticalAlignment="Center" Margin="2,0,2,4">
             <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
                 <RowDefinition Height="Auto" />
                 <RowDefinition Height="Auto" />
             </Grid.RowDefinitions>
@@ -47,7 +92,7 @@
             </Grid.ColumnDefinitions>
 
             <!-- 封面 -->
-            <Border x:Name="Art" Width="72" Height="72" CornerRadius="12" Background="#262626">
+            <Border x:Name="Art" Width="64" Height="64" CornerRadius="11" Background="#262626">
                 <TextBlock x:Name="ArtFallback" Text="&#xE8D6;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets"
                            FontSize="24" Foreground="{StaticResource Dim}"
                            HorizontalAlignment="Center" VerticalAlignment="Center" />
@@ -79,7 +124,7 @@
             </Grid>
 
             <!-- 進度 -->
-            <Grid x:Name="ProgressRow" Grid.Row="1" Grid.ColumnSpan="2" Margin="0,10,0,0">
+            <Grid x:Name="ProgressRow" Grid.Row="1" Grid.ColumnSpan="2" Margin="0,8,0,0">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto" />
                     <ColumnDefinition Width="*" />
@@ -92,6 +137,23 @@
                     <Border x:Name="ProgressFill" CornerRadius="2" Background="White" HorizontalAlignment="Left" Width="0" />
                 </Grid>
                 <TextBlock x:Name="DurationText" Grid.Column="2" FontSize="10.5" Foreground="{StaticResource Secondary}"
+                           VerticalAlignment="Center" MinWidth="30" TextAlignment="Right" />
+            </Grid>
+
+            <!-- 音量(系統主音量) -->
+            <Grid x:Name="VolumeRow" Grid.Row="2" Grid.ColumnSpan="2" Margin="0,4,0,0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <Button x:Name="MuteButton" Content="&#xE995;" Style="{StaticResource ControlButton}"
+                        Width="26" Height="24" FontSize="13" Foreground="{StaticResource Secondary}"
+                        Margin="-2,0,0,0" Click="OnMuteClick" ToolTip="靜音" />
+                <Slider x:Name="VolumeSlider" Grid.Column="1" Style="{StaticResource VolumeSlider}"
+                        Margin="6,0,8,0" VerticalAlignment="Center"
+                        ValueChanged="OnVolumeChanged" PreviewMouseWheel="OnVolumeWheel" />
+                <TextBlock x:Name="VolumeText" Grid.Column="2" FontSize="10.5" Foreground="{StaticResource Secondary}"
                            VerticalAlignment="Center" MinWidth="30" TextAlignment="Right" />
             </Grid>
         </Grid>

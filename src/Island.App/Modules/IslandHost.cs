@@ -10,6 +10,7 @@ internal interface IShellController
     void Expand(string moduleId);
     void Collapse();
     IDisposable HoldExpanded();
+    void Announce(string moduleId, TimeSpan duration);
 }
 
 internal sealed class IslandHost(Dispatcher dispatcher) : IIslandHost
@@ -28,6 +29,16 @@ internal sealed class IslandHost(Dispatcher dispatcher) : IIslandHost
     public void Collapse() => Shell?.Collapse();
 
     public IDisposable HoldExpanded() => Shell?.HoldExpanded() ?? EmptyDisposable.Instance;
+
+    public void Announce(string moduleId, TimeSpan duration)
+    {
+        if (!Dispatcher.CheckAccess())
+        {
+            Dispatcher.BeginInvoke(() => Announce(moduleId, duration));
+            return;
+        }
+        Shell?.Announce(moduleId, duration);
+    }
 
     private sealed class EmptyDisposable : IDisposable
     {

@@ -67,7 +67,7 @@
                 <MenuItem x:Name="AutoStartItem" Header="開機時啟動" IsCheckable="True" Click="OnAutoStartClick" />
                 <MenuItem x:Name="HideInFullscreenItem" Header="全螢幕時隱藏" IsCheckable="True" Click="OnHideInFullscreenClick" />
                 <MenuItem x:Name="HideWhenIdleItem" Header="閒置時隱藏" IsCheckable="True" Click="OnHideWhenIdleClick" />
-                <MenuItem x:Name="ShowActivityItem" Header="播放中時顯示" IsCheckable="True" Click="OnShowActivityClick" />
+                <MenuItem x:Name="AnnounceItem" Header="切歌時顯示" IsCheckable="True" Click="OnAnnounceClick" />
                 <Separator />
                 <MenuItem Header="結束" Click="OnExitClick" />
             </ContextMenu>
@@ -108,7 +108,7 @@
                                 Orientation="Horizontal"
                                 HorizontalAlignment="Right" VerticalAlignment="Center" />
 
-                    <!-- 模組有活動(例如正在播放)且不是預覽時,取代上面三格 -->
+                    <!-- 模組有活動(例如正在播放)時,預覽與「切歌提示」改顯示活動畫面,取代上面三格 -->
                     <ContentControl x:Name="ActivitySlot" Grid.ColumnSpan="3" Opacity="0"
                                     IsHitTestVisible="False" Focusable="False"
                                     VerticalAlignment="Center" />

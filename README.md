@@ -10,10 +10,10 @@
 | 動作 | 結果 |
 |---|---|
 | 平常(閒置) | **完全隱藏**。螢幕最上緣中間留一條看不見的熱區(寬同收合膠囊、高 = topOffset + 4 DIP)。右鍵「閒置時隱藏」取消勾選 → 改成平常顯示只有時間的小膠囊。 |
-| 滑鼠推到螢幕上緣中間 / 移到膠囊上 | 出現「一排字」(320 寬):左邊日期、中間時間、右邊 Shelf 數量。滑鼠離開約 0.2 秒後再隱藏。 |
-| 正在播放音樂/影片時 | 閒置也會顯示小膠囊:**封面 + 歌名 · 歌手**。停止或暫停約 2 秒後回到隱藏。右鍵「播放中時顯示」可關掉。 |
+| 滑鼠推到螢幕上緣中間 / 移到膠囊上 | 出現「一排字」(320 寬)。**正在播放時**顯示封面 + 歌名 · 歌手;沒有播放時顯示左邊日期、中間時間、右邊 Shelf 數量。滑鼠離開約 0.2 秒後再隱藏。 |
+| 正在播放音樂/影片時 | 平常一樣隱藏。**換歌時**膠囊出現約 3 秒(封面 + 歌名 · 歌手)再自動隱藏;暫停/繼續不會出現。右鍵「切歌時顯示」可關掉。 |
 | 左鍵點一下 | **固定展開**成 380×170,上方有模組分頁(時間/播放/Shelf)。正在播放時直接打開「播放」分頁。滑鼠移開也不會收。 |
-| 播放分頁 | 封面、歌名、歌手、來源(Chrome、Spotify…)、進度條、上一首/播放暫停/下一首。沒有播放時顯示「目前沒有正在播放的媒體」。 |
+| 播放分頁 | 封面、歌名、歌手、來源(Chrome、Spotify…)、進度條、上一首/播放暫停/下一首,以及**系統音量**滑桿(可拖曳、點擊跳到該位置、滾輪 ±2;左邊喇叭圖示切換靜音;用鍵盤音量鍵調整時滑桿會跟著動)。沒有播放時顯示「目前沒有正在播放的媒體」。 |
 | 固定展開時點島以外的任何地方 | 收合(回到隱藏)。點島裡面(分頁、檔案)不會收。 |
 | 把檔案拖到螢幕上緣中間或膠囊上 | 自動展開並切到 Shelf,邊框亮起;放開即加入。拖曳造成的展開不固定,滑鼠離開約 0.7 秒後收合。 |
 | Shelf:拖曳某個檔案 | 拖到其他程式。行為和從檔案總管拖曳一樣:同一個磁碟預設是移動,不同磁碟是複製,可按 Ctrl/Shift 切換。檔案被移走後會自動從 Shelf 移除。 |
@@ -21,7 +21,7 @@
 | Shelf:雙擊檔案 | 用預設程式開啟 |
 | Shelf:右鍵檔案 | 開啟/在檔案總管中顯示/從 Shelf 移除 |
 | Shelf:「全部清除」 | 清空清單(不會刪除檔案) |
-| 右鍵膠囊 | 開機時啟動/全螢幕時隱藏/閒置時隱藏/播放中時顯示(都是勾選切換)/結束 |
+| 右鍵膠囊 | 開機時啟動/全螢幕時隱藏/閒置時隱藏/切歌時顯示(都是勾選切換)/結束 |
 | 主螢幕上有全螢幕程式 | 膠囊自動隱藏(影片、遊戲、簡報、瀏覽器 F11、無邊框最大化的播放器);離開全螢幕或切到別的視窗就回來。只看膠囊所在的螢幕,另一個螢幕全螢幕不影響。 |
 
 Shelf 只記住檔案**路徑**,不會複製檔案。清單存在 `%LOCALAPPDATA%\Island\modules\shelf\shelf.json`,重新啟動後保留;已經不存在的檔案會在展開時自動移除。收合時膠囊右側顯示「Shelf N」。
@@ -66,7 +66,7 @@ dotnet publish src\Island.App -c Release -r win-x64 --self-contained false -o pu
   "hideWhenIdle": true,
   "hideInFullscreen": true,
   "softwareRendering": true,
-  "showActivityWhenIdle": true,
+  "announceActivity": true,
   "modules": ["clock", "media", "shelf"],
   "disabledModules": []
 }
@@ -80,7 +80,7 @@ dotnet publish src\Island.App -c Release -r win-x64 --self-contained false -o pu
 | `peekWidth` | 滑鼠移過去時變寬到多少(一排字,高度同收合) |
 | `expandedWidth` / `expandedHeight` | 點擊展開後的大小(NUSA 展開約 400×175) |
 | `hideWhenIdle` | `true` = 平常完全隱藏,滑鼠推到螢幕上緣中間才出現;`false` = 平常顯示小膠囊。右鍵選單「閒置時隱藏」會直接改這個值,立即生效。 |
-| `showActivityWhenIdle` | 有模組在進行活動(目前只有「正在播放」)時,閒置也顯示小膠囊。右鍵「播放中時顯示」會直接改這個值。 |
+| `announceActivity` | 換歌時讓膠囊出現約 3 秒。右鍵「切歌時顯示」會直接改這個值。 |
 | `hideInFullscreen` | 膠囊所在螢幕有全螢幕程式時自動隱藏。右鍵選單的「全螢幕時隱藏」會直接改這個值,立即生效。 |
 | `softwareRendering` | `true` = 軟體算圖,不建立 Direct3D 裝置,記憶體約省一半(見下方數據)。之後展開動畫若不順可改成 `false`。 |
 | `modules` | 模組順序。第一個有收合畫面的模組放在膠囊中央;沒列出但有找到的模組會排在後面。 |
@@ -114,7 +114,7 @@ src/
     IIslandDropTarget.cs         選用:接收拖到膠囊上的東西(CanAccept / Accept)
     IIslandExpandAware.cs        選用:展開畫面顯示/隱藏時收到通知
     IIslandPeekProvider.cs       選用:滑鼠移過去(一排字)時左側的內容,Clock 用它顯示日期
-    IIslandActivity.cs           選用:「正在進行的活動」。有活動時閒置也顯示膠囊,並以 CreateActivityView 取代收合內容
+    IIslandActivity.cs           選用:「正在進行的活動」。有活動時預覽改顯示 CreateActivityView;IIslandHost.Announce 可讓膠囊短暫出現
     IslandModuleBase.cs          模組基底類別(SetBadge 會自動通知外殼)
   Modules/
     Directory.Build.props        所有模組自動引用 Island.Core
@@ -122,7 +122,8 @@ src/
     Island.Modules.Media/
       MediaModule.cs             系統全域媒體控制(GlobalSystemMediaTransportControlsSessionManager):選工作階段、讀取資訊、控制
       MediaView.xaml(.cs)        播放分頁:封面、歌名、進度、控制按鈕
-      MediaActivityView.cs       播放中閒置時的小膠囊內容
+      MediaActivityView.cs       播放中的一排字(預覽、換歌提示)
+      SystemVolume.cs            Core Audio IAudioEndpointVolume:系統主音量、靜音、變更通知
     Island.Modules.Shelf/
       ShelfModule.cs             清單、拖入/拖出、保存、Badge
       ShelfView.xaml(.cs)        展開畫面:圖示格狀清單、標題列、空白提示
@@ -192,17 +193,18 @@ public sealed class XxxModule : IslandModuleBase
 | 全螢幕時隱藏 | 註冊成**不佔空間**的 AppBar(只 `ABM_NEW`,不 `ABM_SETPOS`)以收到系統的 `ABN_FULLSCREENAPP` 通知,再加上前景視窗切換事件,兩者都等 250 ms 讓視窗大小穩定後判斷一次,不輪詢。判斷:`SHQueryUserNotificationState` 回報 D3D 獨佔全螢幕/簡報模式;或依 Z 順序找出膠囊所在螢幕上最上面的一般視窗(略過工具視窗、被 DWM 隱藏的視窗、桌面與工作列),它蓋滿整個螢幕、且不是「有標題列的一般最大化」就算全螢幕。 |
 | 閒置隱藏 + 熱區 | 視窗貼齊螢幕頂端,膠囊用 Margin 往下 `topOffset`。閒置時膠囊 Opacity = 0(像素 alpha 0,系統直接讓滑鼠穿透);熱區是 alpha 1/255 的細條,看不見但收得到滑鼠與拖放。熱區與膠囊包在同一個 Grid 裡,滑鼠進出只看這個 Grid。 |
 | 點外面收合 | 不取得焦點的視窗收不到失焦事件,所以只在「固定展開」期間掛 `WH_MOUSE_LL`,收合時立刻卸下。掛勾裡只用 `WindowFromPoint` 判斷點到的視窗是不是本程式(膠囊、右鍵選單都算裡面),收合排到 UI 執行緒稍後執行。 |
-| 正在播放 | `GlobalSystemMediaTransportControlsSessionManager`,和 Windows 音量提示框的媒體卡片是同一套,所以有接系統媒體控制的程式都支援。訂閱所有工作階段的播放狀態/歌曲資訊事件,優先顯示「正在播放」的那個;事件 60 ms 去抖動後才重新讀取。瀏覽器播放時約每 4～5 秒送一次時間軸更新,收合時直接忽略,展開時才讀;進度條只在展開於播放分頁且正在播放時每秒更新。封面以 160 px 解碼並凍結。閒置的小膠囊沒有動畫(軟體算圖下持續動畫會一直耗 CPU)。 |
+| 正在播放 | `GlobalSystemMediaTransportControlsSessionManager`,和 Windows 音量提示框的媒體卡片是同一套,所以有接系統媒體控制的程式都支援。訂閱所有工作階段的播放狀態/歌曲資訊事件,優先顯示「正在播放」的那個;事件 60 ms 去抖動後才重新讀取。瀏覽器播放時約每 4～5 秒送一次時間軸更新,收合時直接忽略,展開時才讀;進度條只在展開於播放分頁且正在播放時每秒更新。封面以 160 px 解碼並凍結。換歌判斷:來源 + 標題 + 歌手改變且正在播放 → `IIslandHost.Announce(3 秒)`,啟動時讀到的第一首不算。音量只在展開時開啟 Core Audio 端點並註冊通知(每次重新取得預設裝置),收合即釋放;自己設定時帶固定的 event context GUID,收到通知時用它忽略自己造成的變更。 |
 | 開機啟動 | `HKCU\...\Run`,值為 `"Island.exe 完整路徑"`。 |
 | 螢幕熱插拔 | `WM_DISPLAYCHANGE`、`WM_DPICHANGED`、`SystemEvents.DisplaySettingsChanged`、睡眠喚醒 → 400 ms 去抖動後定位,1.5 秒後再確認一次。拔掉外接螢幕時 Windows 會把筆電螢幕改成主螢幕,`"primary"` 模式自然會跟過去。 |
 
 ## 效能量測(2026-11-22,Release 建置,16 執行緒 CPU,1920×1080 @100%)
 
-### 正在播放(Chrome 播放 YouTube,閒置顯示播放小膠囊)
+### 正在播放(Chrome 播放 YouTube)
 
 | 情況 | CPU | 工作管理員「記憶體」 | Private Bytes | Working Set | 執行緒 |
 |---|---|---|---|---|---|
-| 啟動 15 秒後量 90 秒 | 109 ms / 90 s ≈ 0.12% 單核 | **24.3 MB** | 49.5 MB | 114.6 MB | 10 |
+| 播放中、膠囊隱藏,啟動 15 秒後量 60 秒 | 63 ms / 60 s ≈ 0.1% 單核 | **23.6 MB** | — | — | — |
+| (前一版:播放中常駐小膠囊)量 90 秒 | 109 ms / 90 s ≈ 0.12% 單核 | 24.3 MB | 49.5 MB | 114.6 MB | 10 |
 
 第一版沒有忽略時間軸事件,同樣情況是 400 ms / 90 s,改了之後降到上面的數字。
 
@@ -295,6 +297,17 @@ dotnet-counters monitor -n Island --counters System.Runtime
 | 滑鼠離開 | ✅ 再度隱藏、點得穿 |
 | 點一下 → 滑鼠移開 1.8 秒 | ✅ 仍然展開,前景視窗沒被搶走 |
 | 點島外面的視窗 | ✅ 收合並隱藏 |
+
+## 正在播放驗收(實機:Chrome 播放 YouTube)
+
+| 項目 | 結果 |
+|---|---|
+| 播放中、滑鼠沒碰 | ✅ 隱藏(膠囊位置點得穿) |
+| 媒體鍵「下一首」換歌 | ✅ 膠囊出現(封面 + 新歌名),約 3 秒後自動隱藏 |
+| 滑鼠推到上緣 | ✅ 播放中顯示封面 + 歌名 · 歌手 |
+| 點一下 | ✅ 直接打開「播放」分頁,含音量列 |
+| 音量滑桿滾輪 +2 / −2 | ✅ 外部讀取系統音量:10% → 12% → 10% |
+| 暫停 / 播放按鈕 | ✅(前一版已測) |
 
 ## 已知事項
 

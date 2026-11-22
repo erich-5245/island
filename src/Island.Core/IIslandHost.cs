@@ -25,4 +25,10 @@ public interface IIslandHost
     /// 例如從 Shelf 拖檔案出去的期間:<c>using (host.HoldExpanded()) DragDrop.DoDragDrop(...)</c>。
     /// </summary>
     IDisposable HoldExpanded();
+
+    /// <summary>
+    /// 短暫顯示這個模組的活動畫面(<see cref="IIslandActivity.CreateActivityView"/>),
+    /// 例如換歌時讓膠囊出現 3 秒再隱藏。島已經展開或滑鼠正在島上時不會有動作。
+    /// </summary>
+    void Announce(string moduleId, TimeSpan duration);
 }

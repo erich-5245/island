@@ -24,7 +24,7 @@ internal sealed class MediaActivityView : Grid
 
         _glyphFallback = new TextBlock
         {
-            Text = "",
+            Text = "\uE8D6",
             FontFamily = new FontFamily("Segoe Fluent Icons, Segoe MDL2 Assets"),
             FontSize = 11,
             Foreground = new SolidColorBrush(Color.FromRgb(0x9A, 0x9A, 0x9A)),
@@ -55,7 +55,7 @@ internal sealed class MediaActivityView : Grid
 
         var indicator = new TextBlock
         {
-            Text = "",   // 音量圖示,表示「正在發出聲音」
+            Text = "\uE995",   // 音量圖示,表示「正在發出聲音」
             FontFamily = new FontFamily("Segoe Fluent Icons, Segoe MDL2 Assets"),
             FontSize = 12,
             Foreground = new SolidColorBrush(Color.FromRgb(0x9A, 0x9A, 0x9A)),

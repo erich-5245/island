@@ -38,6 +38,10 @@ public sealed class MediaModule : IslandModuleBase, IIslandActivity, IIslandExpa
     private bool _activityActive;
 
     private MediaView? _view;
+    private readonly SystemVolume _volume = new();
+    private bool _volumeOpen;
+    private string? _trackKey;   // 用來判斷「換歌」:來源 + 標題 + 歌手
+    private static readonly TimeSpan AnnounceDuration = TimeSpan.FromSeconds(3);
     private MediaActivityView? _activityView;
 
     public override string Id => "media";
@@ -57,6 +61,9 @@ public sealed class MediaModule : IslandModuleBase, IIslandActivity, IIslandExpa
         _graceTimer.Tick += (_, _) => { _graceTimer.Stop(); SetActivity(false); };
         _progressTimer = new DispatcherTimer(DispatcherPriority.Background, Host.Dispatcher) { Interval = TimeSpan.FromSeconds(1) };
         _progressTimer.Tick += (_, _) => _view?.UpdateProgress(Current);
+
+        _volume.ExternalChange += (level, muted) =>
+            Host.Dispatcher.BeginInvoke(() => { if (_volumeOpen) _view?.ShowVolume(level, muted, true); });
 
         _ = InitAsync();
     }
@@ -198,6 +205,7 @@ public sealed class MediaModule : IslandModuleBase, IIslandActivity, IIslandExpa
             }
 
             Apply(snapshot);
+            AnnounceIfTrackChanged(snapshot);
         }
         catch (Exception ex)
         {
@@ -269,6 +277,17 @@ public sealed class MediaModule : IslandModuleBase, IIslandActivity, IIslandExpa
         }
     }
 
+    /// <summary>換歌(而且正在播放)時讓膠囊短暫出現。啟動時讀到的第一首不算。</summary>
+    private void AnnounceIfTrackChanged(MediaSnapshot s)
+    {
+        if (string.IsNullOrEmpty(s.Title)) return;
+        var key = $"{s.AppId}|{s.Title}|{s.Artist}";
+        if (key == _trackKey) return;
+        bool first = _trackKey is null;
+        _trackKey = key;
+        if (!first && s.IsPlaying) Host.Announce(Id, AnnounceDuration);
+    }
+
     private void SetActivity(bool active)
     {
         if (_activityActive == active) return;
@@ -293,9 +312,30 @@ public sealed class MediaModule : IslandModuleBase, IIslandActivity, IIslandExpa
 
     // ── 展開時才更新進度條 ───────────────────────────────
 
+    // ── 音量(系統主音量) ───────────────────────────────
+
+    /// <summary>設定音量(0~1)。調整音量時順便解除靜音。回傳目前是否靜音。</summary>
+    public bool SetVolume(float level)
+    {
+        if (!_volumeOpen) return false;
+        _volume.Level = level;
+        if (_volume.Muted && level > 0) _volume.Muted = false;
+        return _volume.Muted;
+    }
+
+    /// <summary>切換靜音,回傳切換後是否靜音。</summary>
+    public bool ToggleMute()
+    {
+        if (!_volumeOpen) return false;
+        _volume.Muted = !_volume.Muted;
+        return _volume.Muted;
+    }
+
     public void OnExpanded()
     {
         _expanded = true;
+        _volumeOpen = _volume.Open();   // 每次重新取得預設裝置,插拔耳機後也正確
+        _view?.ShowVolume(_volume.Level, _volume.Muted, _volumeOpen);
         Volatile.Write(ref _expandedFlag, 1);
         _view?.Update(Current);
         UpdateProgressTimer();
@@ -305,6 +345,8 @@ public sealed class MediaModule : IslandModuleBase, IIslandActivity, IIslandExpa
     public void OnCollapsed()
     {
         _expanded = false;
+        _volumeOpen = false;
+        _volume.Close();
         Volatile.Write(ref _expandedFlag, 0);
         UpdateProgressTimer();
     }
@@ -338,6 +380,7 @@ public sealed class MediaModule : IslandModuleBase, IIslandActivity, IIslandExpa
         _refreshTimer?.Stop();
         _graceTimer?.Stop();
         _progressTimer?.Stop();
+        _volume.Dispose();
         _manager = null;
         _subscribed.Clear();
         base.Dispose();

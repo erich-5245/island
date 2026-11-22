@@ -43,7 +43,7 @@ public partial class MediaView : UserControl
             ArtFallback.Visibility = Visibility.Visible;
         }
 
-        PlayButton.Content = s.IsPlaying ? "" : "";   // 暫停 / 播放
+        PlayButton.Content = s.IsPlaying ? "\uE769" : "\uE768";   // 暫停 / 播放
         PlayButton.ToolTip = s.IsPlaying ? "暫停" : "播放";
         PlayButton.IsEnabled = s.CanPlayPause;
         PrevButton.IsEnabled = s.CanPrevious;
@@ -67,6 +67,45 @@ public partial class MediaView : UserControl
 
     private static string Format(TimeSpan t) =>
         t.TotalHours >= 1 ? t.ToString(@"h\:mm\:ss") : t.ToString(@"m\:ss");
+
+    // ── 音量 ─────────────────────────────────────────────
+
+    private bool _settingVolume;   // 程式自己設定滑桿時,不要回寫到系統
+
+    /// <summary>顯示目前的系統音量(展開時、或其他地方改了音量時呼叫)。</summary>
+    public void ShowVolume(float level, bool muted, bool available)
+    {
+        VolumeRow.Visibility = available ? Visibility.Visible : Visibility.Collapsed;
+        if (!available) return;
+        _settingVolume = true;
+        if (!VolumeSlider.IsMouseCaptureWithin) VolumeSlider.Value = Math.Round(level * 100);
+        _settingVolume = false;
+        UpdateVolumeLabel(muted);
+    }
+
+    private void UpdateVolumeLabel(bool muted)
+    {
+        int v = (int)Math.Round(VolumeSlider.Value);
+        VolumeText.Text = muted ? "靜音" : $"{v}";
+        MuteButton.Content = muted || v == 0 ? "\uE74F" : v < 34 ? "\uE993" : v < 67 ? "\uE994" : "\uE995";
+        MuteButton.ToolTip = muted ? "取消靜音" : "靜音";
+        VolumeSlider.Opacity = muted ? 0.45 : 1;
+    }
+
+    private void OnVolumeChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+    {
+        if (_settingVolume || !IsLoaded) return;
+        bool muted = _module.SetVolume((float)(e.NewValue / 100));
+        UpdateVolumeLabel(muted);
+    }
+
+    private void OnVolumeWheel(object sender, System.Windows.Input.MouseWheelEventArgs e)
+    {
+        VolumeSlider.Value = Math.Clamp(VolumeSlider.Value + (e.Delta > 0 ? 2 : -2), 0, 100);
+        e.Handled = true;
+    }
+
+    private void OnMuteClick(object sender, RoutedEventArgs e) => UpdateVolumeLabel(_module.ToggleMute());
 
     private void OnPlayClick(object sender, RoutedEventArgs e) => _module.TogglePlayPause();
     private void OnNextClick(object sender, RoutedEventArgs e) => _module.Next();

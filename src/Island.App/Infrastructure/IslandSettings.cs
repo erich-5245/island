@@ -35,10 +35,10 @@ internal sealed class IslandSettings
     public bool HideWhenIdle { get; set; } = true;
 
     /// <summary>
-    /// true = 有模組在進行活動(例如正在播放音樂)時,閒置也顯示小膠囊(封面 + 歌名)。
-    /// 右鍵選單「播放中時顯示」可切換。
+    /// true = 換歌時膠囊短暫出現(約 3 秒)顯示封面 + 歌名,之後再隱藏。
+    /// 右鍵選單「切歌時顯示」可切換。
     /// </summary>
-    public bool ShowActivityWhenIdle { get; set; } = true;
+    public bool AnnounceActivity { get; set; } = true;
 
     /// <summary>島所在的螢幕有全螢幕程式(影片、遊戲、簡報)時自動隱藏。右鍵選單可切換。</summary>
     public bool HideInFullscreen { get; set; } = true;
