@@ -1111,6 +1111,23 @@ public partial class MainWindow : Window, IShellController
 
     void IShellController.Collapse() => CollapseExpanded();
 
+    bool IShellController.SendToModule(string moduleId, IDataObject data)
+    {
+        var m = _modules.FirstOrDefault(x => string.Equals(x.Id, moduleId, StringComparison.OrdinalIgnoreCase));
+        if (m is not IIslandDropTarget target) return false;
+        try
+        {
+            if (!target.CanAccept(data)) return false;
+            target.Accept(data);
+            return true;
+        }
+        catch (Exception ex)
+        {
+            Log.Write($"交給模組 {moduleId} 失敗:{ex.Message}");
+            return false;
+        }
+    }
+
     IDisposable IShellController.HoldExpanded()
     {
         _holdCount++;

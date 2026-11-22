@@ -11,6 +11,7 @@ internal interface IShellController
     void Collapse();
     IDisposable HoldExpanded();
     void Announce(string moduleId, TimeSpan duration);
+    bool SendToModule(string moduleId, System.Windows.IDataObject data);
 }
 
 internal sealed class IslandHost(Dispatcher dispatcher) : IIslandHost
@@ -39,6 +40,11 @@ internal sealed class IslandHost(Dispatcher dispatcher) : IIslandHost
         }
         AccentTheme.Set(color);
     }
+
+    public bool SendToModule(string moduleId, System.Windows.IDataObject data) =>
+        Dispatcher.CheckAccess()
+            ? Shell?.SendToModule(moduleId, data) ?? false
+            : Dispatcher.Invoke(() => Shell?.SendToModule(moduleId, data) ?? false);
 
     public void Announce(string moduleId, TimeSpan duration)
     {

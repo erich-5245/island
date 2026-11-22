@@ -37,4 +37,10 @@ public interface IIslandHost
     /// null = 回到中性黑白。可從任何執行緒呼叫。
     /// </summary>
     void SetAccent(System.Windows.Media.Color? color);
+
+    /// <summary>
+    /// 把資料(例如檔案)交給另一個模組,就像使用者把它拖到那個模組上一樣
+    /// (對方要實作 <see cref="IIslandDropTarget"/>)。例如下載完成後放進 Shelf。成功回傳 true。
+    /// </summary>
+    bool SendToModule(string moduleId, System.Windows.IDataObject data);
 }
