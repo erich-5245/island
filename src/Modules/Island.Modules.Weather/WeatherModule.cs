@@ -16,7 +16,7 @@ namespace Island.Modules.Weather;
 /// - 30 分鐘內可能下雨(而現在沒下)時,膠囊主動出現提醒,同一場雨只提醒一次。
 /// 位置存在 %LOCALAPPDATA%\Island\modules\weather\location.json,只送出經緯度。
 /// </summary>
-public sealed class WeatherModule : IslandModuleBase, IIslandActivity, IIslandExpandAware, IIslandCompact
+public sealed class WeatherModule : IslandModuleBase, IIslandActivity, IIslandExpandAware, IIslandCompact, IIslandSettingsPage
 {
     private static readonly TimeSpan RefreshInterval = TimeSpan.FromMinutes(15);
     private static readonly TimeSpan RetryInterval = TimeSpan.FromMinutes(5);
@@ -81,6 +81,19 @@ public sealed class WeatherModule : IslandModuleBase, IIslandActivity, IIslandEx
         _compact.Text = $"{WeatherCodes.Symbol(c.Code, c.IsDay)}{Math.Round(c.Temperature):0}°";
     }
     public override FrameworkElement CreateExpandedView() => _view ??= new WeatherView(this);
+
+    public string SettingsTitle => "天氣";
+    public FrameworkElement CreateSettingsView() => new WeatherSettingsView(this);
+
+    /// <summary>換城市:存檔並立刻重新抓取。</summary>
+    public void SetLocation(WeatherLocation location)
+    {
+        Location = location;
+        location.Save(Host.GetModuleDataDirectory(Id));
+        Host.Log($"天氣:位置改為 {location.Name} ({location.Latitude}, {location.Longitude})");
+        _rainAlerted = false;
+        _ = RefreshAsync();
+    }
 
     public void OnExpanded()
     {
@@ -213,6 +226,16 @@ public sealed record WeatherLocation(string Name, double Latitude, double Longit
         "&minutely_15=precipitation" +
         "&daily=temperature_2m_max,temperature_2m_min,precipitation_probability_max" +
         "&timezone=auto&forecast_days=2";
+
+    public void Save(string directory)
+    {
+        try
+        {
+            Directory.CreateDirectory(directory);
+            File.WriteAllText(Path.Combine(directory, "location.json"), JsonSerializer.Serialize(this, JsonOptions));
+        }
+        catch { /* 存不了就算了,下次啟動用舊的 */ }
+    }
 
     /// <summary>讀 location.json;沒有就寫入預設值,方便之後手動修改。</summary>
     public static WeatherLocation Load(string directory)

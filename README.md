@@ -28,7 +28,7 @@
 | Shelf:雙擊檔案 | 用預設程式開啟 |
 | Shelf:右鍵檔案 | 開啟/在檔案總管中顯示/從 Shelf 移除 |
 | Shelf:「全部清除」 | 清空清單(不會刪除檔案) |
-| 右鍵膠囊 | 開機時啟動/全螢幕時隱藏/閒置時隱藏/切歌時顯示/音量亮度提示(都是開關)/結束 |
+| 右鍵膠囊 | 開機時啟動/全螢幕時隱藏/閒置時隱藏/切歌時顯示/音量亮度提示(都是開關)/**設定…**/結束 |
 | 主螢幕上有全螢幕程式 | 膠囊自動隱藏(影片、遊戲、簡報、瀏覽器 F11、無邊框最大化的播放器);離開全螢幕或切到別的視窗就回來。只看膠囊所在的螢幕,另一個螢幕全螢幕不影響。 |
 
 Shelf 只記住檔案**路徑**,不會複製檔案。清單存在 `%LOCALAPPDATA%\Island\modules\shelf\shelf.json`,重新啟動後保留;已經不存在的檔案會在展開時自動移除。收合時膠囊右側顯示「Shelf N」。
@@ -66,6 +66,22 @@ dotnet publish src\Island.App -c Release -r win-x64 --self-contained false -o pu
 - 在膠囊上按右鍵 →「結束」。
 
 ## 設定
+
+右鍵膠囊 →「設定…」打開設定視窗(深色,左側選單):
+
+| 頁面 | 內容 | 生效 |
+|---|---|---|
+| 一般 | 開機時啟動、閒置時隱藏、全螢幕時隱藏、切歌時顯示、音量亮度提示 | 立即 |
+| 外觀與位置 | 顯示在哪個螢幕(跟著主螢幕 / 指定螢幕) | 立即 |
+| | 與頂端距離、膠囊寬高、滑鼠移過去的寬度、展開寬高、軟體算圖 | 重新啟動 |
+| 即時狀態 | 長條/小圓的優先順序(上下移動)、各模組要不要放進小圓 | 立即 |
+| 模組 | 開關每個模組 | 重新啟動 |
+| 天氣 | 目前位置、搜尋城市(Open-Meteo Geocoding,只送出輸入的地名)並選擇 | 立即(幾秒內更新) |
+| Shelf | 截圖自動放進 Shelf | 立即 |
+
+需要重新啟動的項目改了之後,底部會出現「重新啟動 Island」按鈕(先放掉單一執行個體 Mutex 再啟動新的行程)。模組可以實作 `IIslandSettingsPage` 加自己的設定頁,樣式用 `IslandTheme.Settings*` 資源鍵。
+
+以下是 `settings.json` 的完整內容(設定視窗改的就是這個檔案,也可以手動改):
 
 `%LOCALAPPDATA%\Island\settings.json`(第一次執行時自動建立):
 
@@ -121,6 +137,9 @@ src/
     App.xaml(.cs)                啟動:Mutex、讀設定、載入模組、建立視窗
     MainWindow.xaml(.cs)         透明視窗 + 膠囊(左 | 中 | 右 三欄)、右鍵選單、定位
     app.manifest                 asInvoker + Per-Monitor V2 DPI
+    Settings/
+      SettingsWindow.xaml(.cs)   設定視窗(一般、外觀與位置、即時狀態、模組 + 模組自己的頁面)
+      SettingsStyles.xaml        設定用的深色樣式(開關、按鈕、輸入框、卡片、滑桿、選項)
     Infrastructure/              AppPaths、Log、IslandSettings(settings.json)、AutoStart、AccentTheme(強調色筆刷與漸變)
     Interop/
       NativeMethods.cs           Win32 P/Invoke
@@ -137,6 +156,7 @@ src/
     IIslandDropTarget.cs         選用:接收拖到膠囊上的東西(CanAccept / Accept)
     IIslandExpandAware.cs        選用:展開畫面顯示/隱藏時收到通知
     IIslandPeekProvider.cs       選用:滑鼠移過去(一排字)時左側的內容,Clock 用它顯示日期
+    IIslandSettingsPage.cs       選用:模組在設定視窗裡的自訂頁面
     IIslandCompact.cs            選用:縮成小圓(IsCompactRelevant、CreateCompactView)
     IIslandActivity.cs           選用:「正在進行的活動」。有活動時預覽改顯示 CreateActivityView;IIslandHost.Announce 可讓膠囊短暫出現
     IslandModuleBase.cs          模組基底類別(SetBadge 會自動通知外殼)

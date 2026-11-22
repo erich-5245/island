@@ -70,6 +70,7 @@
                 <MenuItem x:Name="AnnounceItem" Header="切歌時顯示" IsCheckable="True" StaysOpenOnClick="True" Click="OnAnnounceClick" />
                 <MenuItem x:Name="OsdItem" Header="音量亮度提示" IsCheckable="True" StaysOpenOnClick="True" Click="OnOsdClick" />
                 <Separator />
+                <MenuItem Header="設定…" Click="OnSettingsClick" />
                 <MenuItem Header="結束" Click="OnExitClick" />
             </ContextMenu>
         </Grid.ContextMenu>

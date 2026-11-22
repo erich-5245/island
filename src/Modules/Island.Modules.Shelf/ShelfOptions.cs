@@ -15,6 +15,16 @@ internal sealed class ShelfOptions
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
     };
 
+    public void Save(string directory)
+    {
+        try
+        {
+            Directory.CreateDirectory(directory);
+            File.WriteAllText(Path.Combine(directory, "options.json"), JsonSerializer.Serialize(this, JsonOptions));
+        }
+        catch { }
+    }
+
     public static ShelfOptions Load(string directory)
     {
         var file = Path.Combine(directory, "options.json");

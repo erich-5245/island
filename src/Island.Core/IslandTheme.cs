@@ -26,4 +26,20 @@ public static class IslandTheme
     public const string CapsuleBorder = "Island.CapsuleBorder";
     /// <summary>放在 <see cref="Accent"/> 上面的前景色(中性時強調色是白色,前景就是黑色)。</summary>
     public const string OnAccent = "Island.OnAccent";
+
+    // ── 設定視窗的樣式(Style 資源鍵,用 FindResource / SetResourceReference 取用) ──
+    /// <summary>CheckBox → 開關。</summary>
+    public const string SettingsToggle = "Island.Settings.Toggle";
+    /// <summary>一般按鈕(深灰)。</summary>
+    public const string SettingsButton = "Island.Settings.Button";
+    /// <summary>主要按鈕(強調色)。</summary>
+    public const string SettingsAccentButton = "Island.Settings.AccentButton";
+    /// <summary>文字輸入框。</summary>
+    public const string SettingsTextBox = "Island.Settings.TextBox";
+    /// <summary>一列設定的外框(深灰圓角卡片)。</summary>
+    public const string SettingsCard = "Island.Settings.Card";
+    /// <summary>卡片標題文字。</summary>
+    public const string SettingsTitleText = "Island.Settings.TitleText";
+    /// <summary>卡片說明文字(灰色小字)。</summary>
+    public const string SettingsCaptionText = "Island.Settings.CaptionText";
 }

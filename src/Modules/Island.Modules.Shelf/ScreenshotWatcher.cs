@@ -22,8 +22,15 @@ internal sealed class ScreenshotWatcher : IDisposable
     /// <summary>新截圖的完整路徑(背景執行緒)。</summary>
     public event Action<string>? Captured;
 
+    public void Stop()
+    {
+        _watcher?.Dispose();
+        _watcher = null;
+    }
+
     public bool Start()
     {
+        Stop();
         Folder = FindFolder();
         if (Folder is null) return false;
         try

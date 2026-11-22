@@ -14,7 +14,7 @@ namespace Island.Modules.Shelf;
 /// 閒置時不做任何事:沒有計時器;展開時才檢查檔案是否還存在。
 /// 截圖(Win+Shift+S 自動存檔)會自動放進 Shelf,膠囊跳出提示(modules\shelf\options.json 可關閉)。
 /// </summary>
-public sealed class ShelfModule : IslandModuleBase, IIslandDropTarget, IIslandExpandAware, IIslandCompact, IIslandActivity
+public sealed class ShelfModule : IslandModuleBase, IIslandDropTarget, IIslandExpandAware, IIslandCompact, IIslandActivity, IIslandSettingsPage
 {
     private static readonly JsonSerializerOptions JsonOptions = new() { WriteIndented = true };
 
@@ -46,14 +46,60 @@ public sealed class ShelfModule : IslandModuleBase, IIslandDropTarget, IIslandEx
         PruneMissing(save: true);
         UpdateBadge();
 
-        if (ShelfOptions.Load(Host.GetModuleDataDirectory(Id)).CaptureScreenshots)
+        _options = ShelfOptions.Load(Host.GetModuleDataDirectory(Id));
+        _toastTimer = new DispatcherTimer(DispatcherPriority.Background, Host.Dispatcher) { Interval = ToastDuration + TimeSpan.FromMilliseconds(300) };
+        _toastTimer.Tick += (_, _) => { _toastTimer.Stop(); SetToast(false); };
+        _screenshots.Captured += path => Host.Dispatcher.BeginInvoke(() => OnScreenshot(path));
+        if (_options.CaptureScreenshots) StartCapture();
+    }
+
+    private ShelfOptions _options = new();
+
+    private void StartCapture()
+    {
+        bool ok = _screenshots.Start();
+        Host.Log(ok ? $"Shelf:監看截圖資料夾 {_screenshots.Folder}" : "Shelf:找不到截圖資料夾,截圖不會自動加入");
+    }
+
+    // ── 設定頁 ──
+    public string SettingsTitle => "Shelf";
+
+    public FrameworkElement CreateSettingsView()
+    {
+        var card = new System.Windows.Controls.Border();
+        card.SetResourceReference(StyleProperty, IslandTheme.SettingsCard);
+        var grid = new System.Windows.Controls.Grid();
+        grid.ColumnDefinitions.Add(new System.Windows.Controls.ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        grid.ColumnDefinitions.Add(new System.Windows.Controls.ColumnDefinition { Width = GridLength.Auto });
+        var text = new System.Windows.Controls.StackPanel();
+        var title = new System.Windows.Controls.TextBlock { Text = "截圖自動放進 Shelf" };
+        title.SetResourceReference(StyleProperty, IslandTheme.SettingsTitleText);
+        var caption = new System.Windows.Controls.TextBlock
         {
-            _toastTimer = new DispatcherTimer(DispatcherPriority.Background, Host.Dispatcher) { Interval = ToastDuration + TimeSpan.FromMilliseconds(300) };
-            _toastTimer.Tick += (_, _) => { _toastTimer.Stop(); SetToast(false); };
-            _screenshots.Captured += path => Host.Dispatcher.BeginInvoke(() => OnScreenshot(path));
-            bool ok = _screenshots.Start();
-            Host.Log(ok ? $"Shelf:監看截圖資料夾 {_screenshots.Folder}" : "Shelf:找不到截圖資料夾,截圖不會自動加入");
-        }
+            Text = $"Win+Shift+S 截圖後會自動加入 Shelf,並在膠囊顯示提示。監看的資料夾:{_screenshots.Folder ?? "(啟用後會自動尋找)"}",
+        };
+        caption.SetResourceReference(StyleProperty, IslandTheme.SettingsCaptionText);
+        text.Children.Add(title);
+        text.Children.Add(caption);
+        grid.Children.Add(text);
+        var toggle = new System.Windows.Controls.CheckBox { IsChecked = _options.CaptureScreenshots, Margin = new Thickness(16, 0, 0, 0) };
+        toggle.SetResourceReference(StyleProperty, IslandTheme.SettingsToggle);
+        toggle.Checked += (_, _) => SetCapture(true);
+        toggle.Unchecked += (_, _) => SetCapture(false);
+        System.Windows.Controls.Grid.SetColumn(toggle, 1);
+        grid.Children.Add(toggle);
+        card.Child = grid;
+        return card;
+    }
+
+    private static readonly DependencyProperty StyleProperty = FrameworkElement.StyleProperty;
+
+    private void SetCapture(bool on)
+    {
+        _options.CaptureScreenshots = on;
+        _options.Save(Host.GetModuleDataDirectory(Id));
+        if (on) StartCapture();
+        else _screenshots.Stop();
     }
 
     private void OnScreenshot(string path)

@@ -52,6 +52,30 @@ public partial class App : Application
         window.Show();
     }
 
+    /// <summary>
+    /// 重新啟動(設定改了尺寸、模組等需要重建視窗的項目時)。
+    /// 先放掉單一執行個體的 Mutex,新的行程才不會以為已經有一個在跑而直接結束。
+    /// </summary>
+    public void Restart()
+    {
+        Log.Write("重新啟動");
+        if (_singleInstance is not null)
+        {
+            _singleInstance.ReleaseMutex();
+            _singleInstance.Dispose();
+            _singleInstance = null;
+        }
+        try
+        {
+            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(Environment.ProcessPath!) { UseShellExecute = false });
+        }
+        catch (Exception ex)
+        {
+            Log.Write($"重新啟動失敗:{ex.Message}");
+        }
+        Shutdown();
+    }
+
     protected override void OnExit(ExitEventArgs e)
     {
         foreach (var m in _modules)

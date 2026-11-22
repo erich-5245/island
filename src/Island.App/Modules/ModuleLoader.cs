@@ -14,6 +14,9 @@ internal static class ModuleLoader
 {
     private const string Pattern = "Island.Modules.*.dll";
 
+    /// <summary>找到的所有模組(含停用的),給設定視窗的「模組」頁使用。</summary>
+    public static IReadOnlyList<(string Id, string Title)> Discovered { get; private set; } = [];
+
     public static IReadOnlyList<IIslandModule> LoadAll(IslandSettings settings, IIslandHost host)
     {
         var found = new List<IIslandModule>();
@@ -48,6 +51,7 @@ internal static class ModuleLoader
             }
         }
 
+        Discovered = found.Select(m => (m.Id, m.Title)).ToList();
         var disabled = new HashSet<string>(settings.DisabledModules, StringComparer.OrdinalIgnoreCase);
         var ordered = found
             .Where(m => !disabled.Contains(m.Id))

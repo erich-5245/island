@@ -1052,4 +1052,32 @@ public partial class MainWindow : Window, IShellController
     }
 
     private void OnExitClick(object sender, RoutedEventArgs e) => Application.Current.Shutdown();
+
+    // ── 設定視窗 ─────────────────────────────────────────
+
+    private Settings.SettingsWindow? _settingsWindow;
+
+    private void OnSettingsClick(object sender, RoutedEventArgs e)
+    {
+        CloseMenus();
+        if (_settingsWindow is { IsLoaded: true })
+        {
+            if (_settingsWindow.WindowState == WindowState.Minimized) _settingsWindow.WindowState = WindowState.Normal;
+            _settingsWindow.Activate();
+            return;
+        }
+        _settingsWindow = new Settings.SettingsWindow(_settings, this, _modules);
+        _settingsWindow.Closed += (_, _) => _settingsWindow = null;
+        _settingsWindow.Show();
+        _settingsWindow.Activate();
+    }
+
+    /// <summary>設定視窗改了可以立即套用的項目(閒置隱藏、全螢幕隱藏、螢幕)後呼叫。</summary>
+    internal void ApplySettingsLive()
+    {
+        ApplyIdleMode(animate: true);
+        if (_settings.HideInFullscreen) _fullscreen?.Evaluate();
+        else if (!IsVisible) OnFullscreenChanged(false);
+        Reposition("設定");
+    }
 }
