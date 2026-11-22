@@ -40,9 +40,11 @@ public partial class App : Application
         if (settings.SoftwareRendering)
             RenderOptions.ProcessRenderMode = RenderMode.SoftwareOnly;
 
-        _modules = ModuleLoader.LoadAll(settings, new IslandHost(Dispatcher));
+        var host = new IslandHost(Dispatcher);
+        _modules = ModuleLoader.LoadAll(settings, host);
 
         var window = new MainWindow(settings, _modules);
+        host.Shell = window;
         MainWindow = window;
         window.Show();
     }

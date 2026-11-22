@@ -39,6 +39,13 @@ internal static class NativeMethods
     [DllImport("user32.dll")]
     public static extern IntPtr GetForegroundWindow();
 
+    [StructLayout(LayoutKind.Sequential)]
+    public struct POINT { public int X, Y; }
+
+    [DllImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static extern bool GetCursorPos(out POINT lpPoint);
+
     // ── 螢幕 ──────────────────────────────────────────────
     public const uint MONITORINFOF_PRIMARY = 1;
     public const int MDT_EFFECTIVE_DPI = 0;

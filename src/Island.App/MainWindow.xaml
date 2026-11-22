@@ -15,40 +15,100 @@
         SnapsToDevicePixels="True"
         FontFamily="{StaticResource IslandFont}">
 
+    <Window.Resources>
+        <!-- 展開畫面上方的模組分頁 -->
+        <Style x:Key="TabButton" TargetType="RadioButton">
+            <Setter Property="Foreground" Value="{StaticResource SecondaryTextBrush}" />
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Focusable" Value="False" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="RadioButton">
+                        <Border x:Name="Bg" CornerRadius="10" Padding="10,3" Background="Transparent">
+                            <ContentPresenter />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="Bg" Property="Background" Value="#262626" />
+                                <Setter Property="Foreground" Value="White" />
+                            </Trigger>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Foreground" Value="White" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </Window.Resources>
+
     <!--
-      視窗本身比膠囊大(預留之後展開的空間)。
-      根 Grid 沒有背景 = 像素 alpha 為 0 = 滑鼠點擊直接穿透到後面的程式。
-      只有膠囊(不透明)會接收滑鼠。
+      視窗本身比膠囊大(預留展開空間)。
+      根 Grid 沒有背景 = 像素 alpha 為 0 = 滑鼠點擊與拖放直接穿透到後面的程式。
+      只有膠囊(不透明)會接收滑鼠與拖放。
     -->
     <Grid>
         <Border x:Name="Capsule"
                 Width="200" Height="36"
                 HorizontalAlignment="Center" VerticalAlignment="Top"
                 CornerRadius="18"
-                Background="{StaticResource CapsuleBrush}">
+                Background="{StaticResource CapsuleBrush}"
+                BorderBrush="Transparent" BorderThickness="1"
+                AllowDrop="True"
+                MouseEnter="OnCapsuleMouseEnter"
+                MouseLeave="OnCapsuleMouseLeave"
+                MouseLeftButtonUp="OnCapsuleClick"
+                DragEnter="OnCapsuleDragEnter"
+                DragOver="OnCapsuleDragOver"
+                DragLeave="OnCapsuleDragLeave"
+                Drop="OnCapsuleDrop">
             <Border.ContextMenu>
                 <ContextMenu>
                     <MenuItem Header="結束" Click="OnExitClick" />
                 </ContextMenu>
             </Border.ContextMenu>
 
-            <!-- 三欄:左(預留) | 中(主模組的收合畫面) | 右(各模組的小提示) -->
-            <Grid Margin="14,0">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*" />
-                    <ColumnDefinition Width="Auto" />
-                    <ColumnDefinition Width="*" />
-                </Grid.ColumnDefinitions>
+            <Grid ClipToBounds="True">
+                <!-- 收合層:左(預留) | 中(主模組) | 右(各模組的小提示) -->
+                <Grid x:Name="CollapsedLayer" Margin="13,0" Height="34" VerticalAlignment="Top">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
 
-                <ContentControl x:Name="LeftSlot" Grid.Column="0"
-                                HorizontalAlignment="Left" VerticalAlignment="Center" Focusable="False" />
+                    <ContentControl x:Name="LeftSlot" Grid.Column="0"
+                                    HorizontalAlignment="Left" VerticalAlignment="Center" Focusable="False" />
 
-                <ContentControl x:Name="CenterSlot" Grid.Column="1"
-                                HorizontalAlignment="Center" VerticalAlignment="Center" Focusable="False" />
+                    <ContentControl x:Name="CenterSlot" Grid.Column="1"
+                                    HorizontalAlignment="Center" VerticalAlignment="Center" Focusable="False" />
 
-                <StackPanel x:Name="BadgeStrip" Grid.Column="2"
-                            Orientation="Horizontal"
-                            HorizontalAlignment="Right" VerticalAlignment="Center" />
+                    <StackPanel x:Name="BadgeStrip" Grid.Column="2"
+                                Orientation="Horizontal"
+                                HorizontalAlignment="Right" VerticalAlignment="Center" />
+                </Grid>
+
+                <!--
+                  展開層:固定為展開後的尺寸並置中,膠囊放大時像「揭開」一樣出現,
+                  不會在動畫過程中反覆重新排版。
+                -->
+                <Grid x:Name="ExpandedLayer"
+                      Width="438" Height="228"
+                      HorizontalAlignment="Center" VerticalAlignment="Top"
+                      Visibility="Collapsed" Opacity="0">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
+
+                    <StackPanel x:Name="TabStrip" Grid.Row="0"
+                                Orientation="Horizontal" HorizontalAlignment="Center"
+                                Margin="0,10,0,0" />
+
+                    <ContentControl x:Name="ExpandedSlot" Grid.Row="1"
+                                    Margin="14,8,14,12" Focusable="False" />
+                </Grid>
             </Grid>
         </Border>
     </Grid>

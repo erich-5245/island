@@ -1,29 +1,66 @@
 ﻿using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Input;
 using System.Windows.Interop;
 using System.Windows.Media;
+using System.Windows.Media.Animation;
+using System.Windows.Threading;
 using Island.App.Infrastructure;
 using Island.App.Interop;
+using Island.App.Modules;
 using Island.Core;
 using static Island.App.Interop.NativeMethods;
 
 namespace Island.App;
 
-public partial class MainWindow : Window
+public partial class MainWindow : Window, IShellController
 {
+    // ── 尺寸與動畫(DIP) ─────────────────────────────────
+    private static readonly Size CollapsedSize = new(200, 36);
+    private static readonly Size HoverSize = new(210, 38);
+    private static readonly Size ExpandedSize = new(440, 230);   // = ExpandedLayer 438×228 + 邊框
+    private const double CollapsedRadius = 18;
+    private const double ExpandedRadius = 26;
+
+    private static readonly Duration HoverDuration = new(TimeSpan.FromMilliseconds(140));
+    private static readonly Duration ExpandDuration = new(TimeSpan.FromMilliseconds(340));
+    private static readonly Duration CollapseDuration = new(TimeSpan.FromMilliseconds(260));
+
+    /// <summary>展開時每隔多久確認一次滑鼠是否還在島上(只在展開期間運作)。</summary>
+    private static readonly TimeSpan LeaveCheckInterval = TimeSpan.FromMilliseconds(350);
+    /// <summary>連續幾次確認滑鼠都不在島上才收合(≈ 0.7 秒)。</summary>
+    private const int LeaveTicksToCollapse = 2;
+
+    private static readonly Brush DragHighlightBrush = Freeze(new SolidColorBrush(Color.FromArgb(0x66, 0xFF, 0xFF, 0xFF)));
+
     private readonly IslandSettings _settings;
     private readonly IReadOnlyList<IIslandModule> _modules;
+    private readonly Dictionary<IIslandModule, FrameworkElement> _expandedViews = [];
+    private readonly Dictionary<IIslandModule, RadioButton> _tabs = [];
+    private readonly DispatcherTimer _leaveTimer;
+    private bool _expandedViewsBuilt;
+
     private IntPtr _hwnd;
     private TopmostKeeper? _topmost;
     private DisplayWatcher? _displays;
+
+    private bool _expanded;
+    private IIslandModule? _active;
+    private int _holdCount;
+    private int _outsideTicks;
+    private bool _dragInside;
 
     internal MainWindow(IslandSettings settings, IReadOnlyList<IIslandModule> modules)
     {
         _settings = settings;
         _modules = modules;
         InitializeComponent();
+
+        _leaveTimer = new DispatcherTimer(DispatcherPriority.Background) { Interval = LeaveCheckInterval };
+        _leaveTimer.Tick += OnLeaveTimerTick;
+
         BuildCollapsedContent();
-        Closed += (_, _) => { _topmost?.Dispose(); _displays?.Dispose(); };
+        Closed += (_, _) => { _leaveTimer.Stop(); _topmost?.Dispose(); _displays?.Dispose(); };
     }
 
     // ── 視窗建立 ──────────────────────────────────────────
@@ -56,11 +93,8 @@ public partial class MainWindow : Window
                 return new IntPtr(MA_NOACTIVATE);
 
             case WM_DPICHANGED:
-                // 讓 WPF 先處理縮放,之後再依新的 DPI 重新計算位置
-                _displays?.Schedule();
-                break;
-
             case WM_DISPLAYCHANGE:
+                // 讓 WPF 先處理縮放,之後再依新的 DPI 重新計算位置
                 _displays?.Schedule();
                 break;
         }
@@ -90,7 +124,7 @@ public partial class MainWindow : Window
         Log.Write($"[{reason}] 定位到 {monitor} → 視窗 ({x},{y}) {w}x{h}");
     }
 
-    // ── 內容 ─────────────────────────────────────────────
+    // ── 收合內容 ─────────────────────────────────────────
 
     private void BuildCollapsedContent()
     {
@@ -135,6 +169,271 @@ public partial class MainWindow : Window
         return panel;
     }
 
+    // ── 展開內容與分頁 ───────────────────────────────────
+
+    /// <summary>第一次展開時才建立各模組的展開畫面(之後重複使用)。</summary>
+    private void EnsureExpandedViews()
+    {
+        if (_expandedViewsBuilt) return;
+        _expandedViewsBuilt = true;
+
+        foreach (var m in _modules)
+        {
+            var view = SafeCreate(m, () => m.CreateExpandedView());
+            if (view is null) continue;
+            _expandedViews[m] = view;
+
+            var tab = new RadioButton
+            {
+                Content = m.Title,
+                GroupName = "IslandTabs",
+                Style = (Style)FindResource("TabButton"),
+                Margin = new Thickness(2, 0, 2, 0),
+            };
+            tab.Checked += (_, _) => SwitchTo(m);
+            _tabs[m] = tab;
+            TabStrip.Children.Add(tab);
+        }
+
+        // 只有一個模組有展開畫面時不需要分頁
+        TabStrip.Visibility = _tabs.Count >= 2 ? Visibility.Visible : Visibility.Collapsed;
+    }
+
+    private void SwitchTo(IIslandModule module)
+    {
+        if (ReferenceEquals(_active, module) && ExpandedSlot.Content is not null) return;
+        if (!_expandedViews.TryGetValue(module, out var view)) return;
+
+        if (_expanded) NotifyExpand(_active, false);
+        _active = module;
+        ExpandedSlot.Content = view;
+        if (_tabs.TryGetValue(module, out var tab) && tab.IsChecked != true) tab.IsChecked = true;
+        if (_expanded) NotifyExpand(module, true);
+    }
+
+    // ── 展開 / 收合 ──────────────────────────────────────
+
+    private void Expand(IIslandModule? module)
+    {
+        EnsureExpandedViews();
+        module ??= _active ?? _expandedViews.Keys.FirstOrDefault();
+        if (module is null || !_expandedViews.ContainsKey(module)) return;
+
+        SwitchTo(module);
+        _outsideTicks = 0;
+        if (_expanded) return;
+
+        _expanded = true;
+        ExpandedLayer.Visibility = Visibility.Visible;
+        Capsule.CornerRadius = new CornerRadius(ExpandedRadius);
+        AnimateSize(ExpandedSize, ExpandDuration, new BackEase { Amplitude = 0.25, EasingMode = EasingMode.EaseOut });
+        Fade(CollapsedLayer, 0, TimeSpan.FromMilliseconds(90));
+        Fade(ExpandedLayer, 1, TimeSpan.FromMilliseconds(200), TimeSpan.FromMilliseconds(90));
+        _leaveTimer.Start();
+        NotifyExpand(module, true);
+    }
+
+    private void Collapse(bool force = false)
+    {
+        if (!_expanded) return;
+        if (_holdCount > 0 && !force) return;
+
+        _expanded = false;
+        _leaveTimer.Stop();
+        _dragInside = false;
+        Capsule.BorderBrush = Brushes.Transparent;
+        Capsule.CornerRadius = new CornerRadius(CollapsedRadius);
+
+        AnimateSize(IsCursorOverCapsule() ? HoverSize : CollapsedSize, CollapseDuration,
+            new QuarticEase { EasingMode = EasingMode.EaseOut });
+        Fade(ExpandedLayer, 0, TimeSpan.FromMilliseconds(110), completed: () =>
+        {
+            if (!_expanded) ExpandedLayer.Visibility = Visibility.Collapsed;
+        });
+        Fade(CollapsedLayer, 1, TimeSpan.FromMilliseconds(160), TimeSpan.FromMilliseconds(110));
+        NotifyExpand(_active, false);
+    }
+
+    /// <summary>展開期間每 350ms 用 GetCursorPos 確認滑鼠位置;收合後計時器停止,閒置時零成本。</summary>
+    private void OnLeaveTimerTick(object? sender, EventArgs e)
+    {
+        bool stay = _holdCount > 0
+                    || _dragInside
+                    || Mouse.Captured is not null      // 右鍵選單等彈出視窗開啟中
+                    || IsCursorOverCapsule();
+        if (stay)
+        {
+            _outsideTicks = 0;
+            return;
+        }
+
+        Capsule.BorderBrush = Brushes.Transparent;
+        if (++_outsideTicks >= LeaveTicksToCollapse) Collapse();
+    }
+
+    private bool IsCursorOverCapsule()
+    {
+        if (!GetCursorPos(out var pt) || PresentationSource.FromVisual(Capsule) is null) return false;
+        var p = Capsule.PointFromScreen(new Point(pt.X, pt.Y));
+        const double slack = 6;
+        return p.X >= -slack && p.Y >= -slack - 8   // 上方多留一點:膠囊上緣到螢幕頂端的縫隙
+               && p.X <= Capsule.ActualWidth + slack && p.Y <= Capsule.ActualHeight + slack;
+    }
+
+    private void AnimateSize(Size to, Duration duration, IEasingFunction easing)
+    {
+        Capsule.BeginAnimation(WidthProperty, new DoubleAnimation(to.Width, duration) { EasingFunction = easing });
+        Capsule.BeginAnimation(HeightProperty, new DoubleAnimation(to.Height, duration) { EasingFunction = easing });
+    }
+
+    private static void Fade(UIElement element, double to, TimeSpan duration, TimeSpan? delay = null, Action? completed = null)
+    {
+        var anim = new DoubleAnimation(to, new Duration(duration)) { BeginTime = delay ?? TimeSpan.Zero };
+        if (completed is not null) anim.Completed += (_, _) => completed();
+        element.BeginAnimation(OpacityProperty, anim);
+    }
+
+    private void NotifyExpand(IIslandModule? module, bool expanded)
+    {
+        if (module is not IIslandExpandAware aware) return;
+        try
+        {
+            if (expanded) aware.OnExpanded(); else aware.OnCollapsed();
+        }
+        catch (Exception ex)
+        {
+            Log.Write($"模組 {module.Id} 展開/收合通知失敗:{ex.Message}");
+        }
+    }
+
+    // ── 滑鼠 ─────────────────────────────────────────────
+
+    private void OnCapsuleMouseEnter(object sender, MouseEventArgs e)
+    {
+        _outsideTicks = 0;
+        if (!_expanded) AnimateSize(HoverSize, HoverDuration, new CubicEase { EasingMode = EasingMode.EaseOut });
+    }
+
+    private void OnCapsuleMouseLeave(object sender, MouseEventArgs e)
+    {
+        if (!_expanded) AnimateSize(CollapsedSize, HoverDuration, new CubicEase { EasingMode = EasingMode.EaseOut });
+    }
+
+    private void OnCapsuleClick(object sender, MouseButtonEventArgs e)
+    {
+        if (_expanded) return;
+        Expand(null);
+        e.Handled = true;
+    }
+
+    // ── 拖放:交給第一個願意接收的模組 ───────────────────
+
+    private (IIslandModule Module, IIslandDropTarget Target)? FindDropTarget(IDataObject data)
+    {
+        foreach (var m in _modules)
+        {
+            if (m is not IIslandDropTarget target) continue;
+            try
+            {
+                if (target.CanAccept(data)) return (m, target);
+            }
+            catch (Exception ex)
+            {
+                Log.Write($"模組 {m.Id} CanAccept 失敗:{ex.Message}");
+            }
+        }
+        return null;
+    }
+
+    private void OnCapsuleDragEnter(object sender, DragEventArgs e)
+    {
+        var found = FindDropTarget(e.Data);
+        e.Effects = found is null ? DragDropEffects.None : DragDropEffects.Copy;
+        e.Handled = true;
+        if (found is null) return;
+
+        _dragInside = true;
+        Capsule.BorderBrush = DragHighlightBrush;
+        Expand(found.Value.Module);
+    }
+
+    private void OnCapsuleDragOver(object sender, DragEventArgs e)
+    {
+        var found = FindDropTarget(e.Data);
+        e.Effects = found is null ? DragDropEffects.None : DragDropEffects.Copy;
+        e.Handled = true;
+        if (found is null) return;
+
+        _dragInside = true;
+        _outsideTicks = 0;
+        Capsule.BorderBrush = DragHighlightBrush;
+        if (!_expanded || !ReferenceEquals(_active, found.Value.Module)) Expand(found.Value.Module);
+    }
+
+    private void OnCapsuleDragLeave(object sender, DragEventArgs e)
+    {
+        // 在子元素之間移動時也會觸發;真的離開與否交給 _leaveTimer 判斷
+        _dragInside = false;
+        e.Handled = true;
+    }
+
+    private void OnCapsuleDrop(object sender, DragEventArgs e)
+    {
+        _dragInside = false;
+        Capsule.BorderBrush = Brushes.Transparent;
+        e.Handled = true;
+
+        var found = FindDropTarget(e.Data);
+        if (found is null)
+        {
+            e.Effects = DragDropEffects.None;
+            return;
+        }
+
+        try
+        {
+            found.Value.Target.Accept(e.Data);
+            e.Effects = DragDropEffects.Copy;
+            Expand(found.Value.Module);
+        }
+        catch (Exception ex)
+        {
+            Log.Write($"模組 {found.Value.Module.Id} 接收拖放失敗:{ex}");
+            e.Effects = DragDropEffects.None;
+        }
+    }
+
+    // ── IShellController(模組透過 IIslandHost 呼叫) ─────
+
+    void IShellController.Expand(string moduleId)
+    {
+        var m = _modules.FirstOrDefault(x => string.Equals(x.Id, moduleId, StringComparison.OrdinalIgnoreCase));
+        if (m is not null) Expand(m);
+    }
+
+    void IShellController.Collapse() => Collapse();
+
+    IDisposable IShellController.HoldExpanded()
+    {
+        _holdCount++;
+        return new Hold(this);
+    }
+
+    private sealed class Hold(MainWindow owner) : IDisposable
+    {
+        private bool _disposed;
+
+        public void Dispose()
+        {
+            if (_disposed) return;
+            _disposed = true;
+            owner._holdCount = Math.Max(0, owner._holdCount - 1);
+            owner._outsideTicks = 0;
+        }
+    }
+
+    // ── 其他 ─────────────────────────────────────────────
+
     private static FrameworkElement? SafeCreate(IIslandModule m, Func<FrameworkElement?> create)
     {
         try { return create(); }
@@ -143,6 +442,12 @@ public partial class MainWindow : Window
             Log.Write($"模組 {m.Id} 建立畫面失敗:{ex.Message}");
             return null;
         }
+    }
+
+    private static T Freeze<T>(T freezable) where T : Freezable
+    {
+        freezable.Freeze();
+        return freezable;
     }
 
     private void OnExitClick(object sender, RoutedEventArgs e) => Application.Current.Shutdown();
