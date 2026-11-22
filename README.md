@@ -374,7 +374,7 @@ dotnet-counters monitor -n Island --counters System.Runtime
 | 項目 | 結果 |
 |---|---|
 | 電量偵測 | ✅ log:100% 插電;充電到 99% 時滑鼠移過去出現綠色電量環「99」 |
-| 插拔電源提示 | 未實測(需要實際拔插充電線) |
+| 插拔電源提示 | ✅ 使用者實際拔插充電線確認 |
 | 截圖自動放進 Shelf | ✅ 在 `OneDrive\圖片\Screenshots` 放一張新圖 → 膠囊「縮圖 + 截圖已放進 Shelf」,約 3 秒後隱藏,Shelf 多 1 個 |
 | 截圖檔被刪掉 | ✅ 打開 Shelf 分頁時自動從清單移除 |
 | 閒置 60 秒(加入電量 + 截圖監看後,沒換歌) | 31 ms CPU、43 MB、18 執行緒 |
