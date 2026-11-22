@@ -19,6 +19,8 @@
 | 計時分頁 | **計時器**:選 1/3/5/10/15/30/60 分(或在大時間上滾輪 ±1 分,執行中也能加減)→ 開始/暫停/重設。**番茄鐘**:專注 25 分 → 自動開始休息 5 分(每 4 輪休息 15 分)→ 休息結束提醒,按開始進入下一輪;可跳過這一段,4 個圓點顯示這組完成幾輪。 |
 | 計時中 | 膠囊照常隱藏;滑鼠移到上緣顯示「碼錶 剩餘時間 狀態」(計時優先於音樂)。**時間到**時膠囊跳出「時間到」約 6 秒並播放提示音(Windows Notify Calendar),之後 30 秒內滑鼠移過去仍會看到,點一下打開計時分頁。 |
 | 捷徑分頁 | 展開面板的「捷徑」分頁放常用的程式 / 資料夾 / 網址 / 檔案。**點一下:已經開著 → 把那個視窗切到最前面**(最小化的先還原,開了好幾個視窗就切到最近用過的那個);**沒開 → 打開**。Microsoft Store 程式(例如 Claude)用應用程式識別碼啟動。右鍵捷徑可往前 / 往後移、移除。加入方式:設定 →「捷徑」從**開著的視窗**直接加入、選擇程式或資料夾、輸入網址;或在「捷徑」分頁開著時把程式、捷徑(.lnk)、資料夾、網址拖到島上(拖曳經過分頁標籤時會切到那個分頁)。清單存在 `modules\links\links.json`。 |
+| 麥克風 / 鏡頭使用中 | 像 iPhone 的橘點 / 綠點:有程式開始用麥克風或鏡頭時,膠囊出現約 3 秒「● 麥克風使用中 · 程式名稱」;使用期間滑鼠移過去是一個活動或小圓(橘點 / 綠點)。讀的是 Windows 記錄「誰在用麥克風 / 鏡頭」的位置(工作列的麥克風圖示也是讀這裡),用登錄變更通知,不輪詢。 |
+| 下載 | 瀏覽器下載中(Chrome / Edge `.crdownload`、Firefox `.part`):滑鼠移過去顯示「⬇ 下載中 · 檔名 · 已下載大小」或小圓「⬇ 12M」(瀏覽器不告訴檔案系統總大小,所以沒有百分比)。完成:膠囊出現「✓ 下載完成 · 檔名 · 大小」約 4 秒,檔案**自動放進 Shelf**(設定 →「下載」可關掉)。 |
 | 插拔電源 / 電量低 | 插上:「⚡ 充電中 78%」(綠色);拔掉:「使用電池 78%」;充到 100%:「已充飽」;沒插電降到 20% 與 10% 各提醒一次(紅色)。充電中或電量偏低時,滑鼠移過去會佔一個小圓:電量環 + 百分比。只在有電池的電腦上啟用。 |
 | 截圖 | Win+Shift+S / Print Screen 截圖後(Windows 會自動存到「螢幕擷取畫面」資料夾),截圖**自動放進 Shelf**,膠囊出現「縮圖 + 截圖已放進 Shelf」約 3 秒,點開 Shelf 就能拖到聊天或文件裡。`modules\shelf\options.json` 的 `captureScreenshots` 設為 false 可關閉。 |
 | 按音量鍵 / 調亮度 | 膠囊從上緣出現約 1.5 秒:**喇叭(或太陽)圖示 + 長條 + 數字**,連按會延長、長條即時跟著動;靜音顯示「靜音」。音量是任何方式改變系統音量都會顯示(鍵盤、工作列、其他程式);亮度只支援由 Windows 控制亮度的螢幕(筆電內建螢幕),外接螢幕用自己按鈕調的亮度 Windows 不知道。滑鼠停在島上時也會短暫換成提示。右鍵「音量亮度提示」可關掉。Windows 內建的提示框目前**無法隱藏**(這個 Windows 11 版本的提示框不是獨立視窗,沒有穩定的方法)。 |
@@ -111,7 +113,7 @@ dotnet publish src\Island.App -c Release -r win-x64 --self-contained false -o pu
   "hotkey": "Ctrl+Alt+I",
   "announceActivity": true,
   "showOsd": true,
-  "liveOrder": ["media", "timer", "battery", "weather", "shelf"],
+  "liveOrder": ["media", "timer", "privacy", "downloads", "battery", "weather", "shelf"],
   "liveHidden": [],
   "modules": ["clock", "weather", "timer", "media", "shelf", "osd", "battery"],
   "disabledModules": []
@@ -191,6 +193,10 @@ src/
       LinksView.xaml(.cs)        捷徑分頁
       LinksSettingsView.cs       設定頁:目前的捷徑、從開著的視窗加入、瀏覽、網址
       LinkIcons.cs               圖示
+    Island.Modules.Privacy/
+      PrivacyModule.cs           ConsentStore\{microphone,webcam} 使用中偵測(RegNotifyChangeKeyValue)、提示一排、橘 / 綠點小圓
+    Island.Modules.Downloads/
+      DownloadsModule.cs         監看下載資料夾的暫存檔、大小、完成 → IIslandHost.SendToModule("shelf")
     Island.Modules.Battery/
       BatteryModule.cs           GetSystemPowerStatus + SystemEvents.PowerModeChanged(StatusChange):插拔、充飽、低電量
       BatteryViews.cs            提示的一排、電量環小圓(Segoe 電池圖示)
@@ -429,13 +435,25 @@ dotnet-counters monitor -n Island --counters System.Runtime
 | 計時中、膠囊隱藏(只更新看得到的畫面) | **63 ms / 60 s** | 46.0 MB |
 | 計時中、膠囊隱藏(第一版:隱藏時也每秒更新) | 281 ms / 60 s | 43.7 MB |
 
+## 麥克風 / 下載驗收(實機)
+
+| 項目 | 結果 |
+|---|---|
+| 下載中(在下載資料夾寫一個會變大的 .crdownload) | ✅ 滑鼠移過去:左小圓「⬇ 3M」,長條仍是音樂 |
+| 改名成正式檔名(= 下載完成) | ✅ 膠囊「✓ 下載完成 · island-download-test.zip · 5.0 MB」,檔案進 Shelf,之後自動隱藏 |
+| 麥克風開始使用(在 ConsentStore 加一筆使用中的紀錄) | ✅ 膠囊「● 麥克風使用中 · MicTester」;滑鼠移過去左小圓是橘點 |
+| 測試後清理 | ✅ 測試檔、登錄紀錄都已刪除 |
+
 ## 捷徑驗收(實機)
 
 | 項目 | 結果 |
 |---|---|
 | 設定頁列出開著的視窗 | ✅ Claude、Chrome、Word、LINE、Spotify、檔案總管資料夾(顯示路徑) |
 | 從開著的視窗加入 Store 程式 | ✅ Claude 存成 `shell:AppsFolder\Claude_…!Claude`(可在沒開時啟動) |
-| 點捷徑切換 / 開啟、拖曳加入 | 未實測(測試時使用者正在全螢幕看比賽,停止模擬滑鼠) |
+| 點 Chrome 捷徑 | ✅ 切到已開著的 Chrome 視窗 |
+| 點 Downloads 捷徑 | ✅ 切到已開著的「下載 - 檔案總管」 |
+| 點 Claude 捷徑 | ✅ 切回 Claude;點完島自動收起 |
+| 拖檔案到島上 → 經過「捷徑」標籤 → 放開 | ✅ 自動切到捷徑分頁,加成捷徑(不是放進 Shelf) |
 
 ## 電量與截圖驗收(實機)
 
