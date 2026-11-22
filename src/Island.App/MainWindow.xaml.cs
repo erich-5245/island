@@ -483,10 +483,18 @@ public partial class MainWindow : Window, IShellController
         Capsule.BeginAnimation(HeightProperty, new DoubleAnimation(to.Height, duration) { EasingFunction = easing });
     }
 
-    private static void Fade(UIElement element, double to, TimeSpan duration, TimeSpan? delay = null, Action? completed = null)
+    private void Fade(UIElement element, double to, TimeSpan duration, TimeSpan? delay = null, Action? completed = null)
     {
+        // 膠囊完全淡出後設為 Hidden:WPF 不再算圖,模組(例如計時器每秒更新)也能用 IsVisible 判斷要不要更新畫面
+        bool capsule = ReferenceEquals(element, Capsule);
+        if (capsule && to > 0) Capsule.Visibility = Visibility.Visible;
+
         var anim = new DoubleAnimation(to, new Duration(duration)) { BeginTime = delay ?? TimeSpan.Zero };
-        if (completed is not null) anim.Completed += (_, _) => completed();
+        anim.Completed += (_, _) =>
+        {
+            if (capsule && to <= 0 && Capsule.Opacity <= 0) Capsule.Visibility = Visibility.Hidden;
+            completed?.Invoke();
+        };
         element.BeginAnimation(OpacityProperty, anim);
     }
 
@@ -672,6 +680,7 @@ public partial class MainWindow : Window, IShellController
         }
         Capsule.BeginAnimation(OpacityProperty, null);
         Capsule.Opacity = hidden ? 0 : 1;
+        Capsule.Visibility = hidden ? Visibility.Hidden : Visibility.Visible;
     }
 
     private void OnCapsuleClick(object sender, MouseButtonEventArgs e)

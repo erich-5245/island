@@ -17,6 +17,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Island.Modules.Shelf", "src
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Island.Modules.Media", "src\Modules\Island.Modules.Media\Island.Modules.Media.csproj", "{05AA1D9A-65FA-4C15-AEB9-5458FB39DF78}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Island.Modules.Timer", "src\Modules\Island.Modules.Timer\Island.Modules.Timer.csproj", "{79FC634E-2A40-47C6-9BA6-03357FF3D650}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -87,6 +89,18 @@ Global
 		{05AA1D9A-65FA-4C15-AEB9-5458FB39DF78}.Release|x64.Build.0 = Release|Any CPU
 		{05AA1D9A-65FA-4C15-AEB9-5458FB39DF78}.Release|x86.ActiveCfg = Release|Any CPU
 		{05AA1D9A-65FA-4C15-AEB9-5458FB39DF78}.Release|x86.Build.0 = Release|Any CPU
+		{79FC634E-2A40-47C6-9BA6-03357FF3D650}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{79FC634E-2A40-47C6-9BA6-03357FF3D650}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{79FC634E-2A40-47C6-9BA6-03357FF3D650}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{79FC634E-2A40-47C6-9BA6-03357FF3D650}.Debug|x64.Build.0 = Debug|Any CPU
+		{79FC634E-2A40-47C6-9BA6-03357FF3D650}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{79FC634E-2A40-47C6-9BA6-03357FF3D650}.Debug|x86.Build.0 = Debug|Any CPU
+		{79FC634E-2A40-47C6-9BA6-03357FF3D650}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{79FC634E-2A40-47C6-9BA6-03357FF3D650}.Release|Any CPU.Build.0 = Release|Any CPU
+		{79FC634E-2A40-47C6-9BA6-03357FF3D650}.Release|x64.ActiveCfg = Release|Any CPU
+		{79FC634E-2A40-47C6-9BA6-03357FF3D650}.Release|x64.Build.0 = Release|Any CPU
+		{79FC634E-2A40-47C6-9BA6-03357FF3D650}.Release|x86.ActiveCfg = Release|Any CPU
+		{79FC634E-2A40-47C6-9BA6-03357FF3D650}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -97,5 +111,6 @@ Global
 		{3C2ECA8C-8059-4253-BEC3-A7C33A6E5975} = {CA253913-39DE-BFD0-C9A3-4B7EC6FBDF17}
 		{0ED8FA60-3625-4641-B2F3-E593C793E8FF} = {CA253913-39DE-BFD0-C9A3-4B7EC6FBDF17}
 		{05AA1D9A-65FA-4C15-AEB9-5458FB39DF78} = {CA253913-39DE-BFD0-C9A3-4B7EC6FBDF17}
+		{79FC634E-2A40-47C6-9BA6-03357FF3D650} = {CA253913-39DE-BFD0-C9A3-4B7EC6FBDF17}
 	EndGlobalSection
 EndGlobal
