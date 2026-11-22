@@ -355,6 +355,9 @@ public partial class MainWindow : Window, IShellController
                 Margin = new Thickness(2, 0, 2, 0),
             };
             tab.Checked += (_, _) => SwitchTo(m);
+            // 拖曳經過分頁標籤時切到那個分頁(例如把程式拖到「捷徑」)
+            tab.AllowDrop = true;
+            tab.DragEnter += (_, _) => SwitchTo(m);
             _tabs[m] = tab;
             TabStrip.Children.Add(tab);
         }
@@ -1013,6 +1016,18 @@ public partial class MainWindow : Window, IShellController
 
     private (IIslandModule Module, IIslandDropTarget Target)? FindDropTarget(IDataObject data)
     {
+        // 展開中:優先交給目前開著的分頁(例如在「捷徑」分頁拖程式進來 → 加成捷徑)
+        if (IsExpanded && _active is IIslandDropTarget activeTarget)
+        {
+            try
+            {
+                if (activeTarget.CanAccept(data)) return (_active, activeTarget);
+            }
+            catch (Exception ex)
+            {
+                Log.Write($"模組 {_active.Id} CanAccept 失敗:{ex.Message}");
+            }
+        }
         foreach (var m in _modules)
         {
             if (m is not IIslandDropTarget target) continue;

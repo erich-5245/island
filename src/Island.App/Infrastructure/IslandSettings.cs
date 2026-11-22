@@ -62,7 +62,7 @@ internal sealed class IslandSettings
     public List<string> LiveHidden { get; set; } = [];
 
     /// <summary>模組排列順序。沒列出但有找到的模組會排在後面。</summary>
-    public List<string> Modules { get; set; } = ["clock", "weather", "timer", "media", "shelf", "osd", "battery"];
+    public List<string> Modules { get; set; } = ["clock", "weather", "timer", "media", "shelf", "links", "osd", "battery"];
 
     /// <summary>要停用的模組 Id。</summary>
     public List<string> DisabledModules { get; set; } = [];
