@@ -13,6 +13,9 @@ internal sealed class TopmostKeeper : IDisposable
     private readonly WinEventProc _callback; // 必須保存參考,避免被 GC 回收
     private IntPtr _hook;
 
+    /// <summary>前景視窗切換時觸發(在 UI 執行緒上)。</summary>
+    public event Action? ForegroundChanged;
+
     public TopmostKeeper(IntPtr hwnd)
     {
         _hwnd = hwnd;
@@ -25,7 +28,10 @@ internal sealed class TopmostKeeper : IDisposable
         SetWindowPos(_hwnd, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE | SWP_NOOWNERZORDER);
 
     private void OnForegroundChanged(IntPtr hook, uint evt, IntPtr hwnd, int idObject, int idChild, uint thread, uint time)
-        => Reassert();
+    {
+        Reassert();
+        ForegroundChanged?.Invoke();
+    }
 
     public void Dispose()
     {

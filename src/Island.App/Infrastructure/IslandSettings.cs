@@ -28,6 +28,9 @@ internal sealed class IslandSettings
     public double ExpandedWidth { get; set; } = 380;
     public double ExpandedHeight { get; set; } = 170;
 
+    /// <summary>島所在的螢幕有全螢幕程式(影片、遊戲、簡報)時自動隱藏。右鍵選單可切換。</summary>
+    public bool HideInFullscreen { get; set; } = true;
+
     /// <summary>
     /// true = 使用軟體算圖(不建立 Direct3D 裝置,記憶體較省;膠囊一分鐘才重畫一次,影響可忽略)。
     /// 之後若展開動畫不夠順,可改成 false 使用 GPU。

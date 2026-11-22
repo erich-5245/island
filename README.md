@@ -18,7 +18,8 @@
 | Shelf:雙擊檔案 | 用預設程式開啟 |
 | Shelf:右鍵檔案 | 開啟/在檔案總管中顯示/從 Shelf 移除 |
 | Shelf:「全部清除」 | 清空清單(不會刪除檔案) |
-| 右鍵膠囊 | 結束 |
+| 右鍵膠囊 | 開機時啟動(勾選切換)/全螢幕時隱藏(勾選切換,預設開)/結束 |
+| 主螢幕上有全螢幕程式 | 膠囊自動隱藏(影片、遊戲、簡報、瀏覽器 F11、無邊框最大化的播放器);離開全螢幕或切到別的視窗就回來。只看膠囊所在的螢幕,另一個螢幕全螢幕不影響。 |
 
 Shelf 只記住檔案**路徑**,不會複製檔案。清單存在 `%LOCALAPPDATA%\Island\modules\shelf\shelf.json`,重新啟動後保留;已經不存在的檔案會在展開時自動移除。收合時膠囊右側顯示「Shelf N」。
 
@@ -34,7 +35,9 @@ dotnet build Island.sln -c Release
 .\src\Island.App\bin\Release\net10.0-windows\Island.exe
 ```
 
-發佈成單一資料夾(可複製到別處、加入開機啟動):
+**開機時啟動**:右鍵膠囊 → 勾選「開機時啟動」。會寫入 `HKCU\Software\Microsoft\Windows\CurrentVersion\Run\Island`,只影響目前使用者、不需要系統管理員權限,登入後以一般權限啟動。記錄的是「目前這個 Island.exe」的路徑;之後如果改從別的資料夾執行(例如 publish 資料夾),啟動時會自動把路徑更新成新的位置。
+
+發佈成單一資料夾(可複製到別處):
 
 ```powershell
 dotnet publish src\Island.App -c Release -r win-x64 --self-contained false -o publish
@@ -57,6 +60,7 @@ dotnet publish src\Island.App -c Release -r win-x64 --self-contained false -o pu
   "peekWidth": 320,
   "expandedWidth": 380,
   "expandedHeight": 170,
+  "hideInFullscreen": true,
   "softwareRendering": true,
   "modules": ["clock", "shelf"],
   "disabledModules": []
@@ -70,6 +74,7 @@ dotnet publish src\Island.App -c Release -r win-x64 --self-contained false -o pu
 | `collapsedWidth` / `collapsedHeight` | 平常的膠囊大小(只顯示時間) |
 | `peekWidth` | 滑鼠移過去時變寬到多少(一排字,高度同收合) |
 | `expandedWidth` / `expandedHeight` | 點擊展開後的大小(NUSA 展開約 400×175) |
+| `hideInFullscreen` | 膠囊所在螢幕有全螢幕程式時自動隱藏。右鍵選單的「全螢幕時隱藏」會直接改這個值,立即生效。 |
 | `softwareRendering` | `true` = 軟體算圖,不建立 Direct3D 裝置,記憶體約省一半(見下方數據)。之後展開動畫若不順可改成 `false`。 |
 | `modules` | 模組順序。第一個有收合畫面的模組放在膠囊中央;沒列出但有找到的模組會排在後面。 |
 | `disabledModules` | 要停用的模組 Id。 |
@@ -172,6 +177,8 @@ public sealed class XxxModule : IslandModuleBase
 | 不出現在 Alt+Tab / 工作列 | `WS_EX_TOOLWINDOW`、移除 `WS_EX_APPWINDOW`、`ShowInTaskbar=False`。在第一次顯示前就套用。 |
 | 維持最上層 | `SetWinEventHook(EVENT_SYSTEM_FOREGROUND)`:前景視窗一換就 `SetWindowPos(HWND_TOPMOST, SWP_NOACTIVATE)`。事件驅動,閒置時不耗資源。 |
 | 多螢幕與 DPI | Per-Monitor V2。位置以實體像素計算:`寬 = 640 DIP × 螢幕 DPI/96`,水平置中,`y = 螢幕頂端 + 8 × DPI/96`。 |
+| 全螢幕時隱藏 | 註冊成**不佔空間**的 AppBar(只 `ABM_NEW`,不 `ABM_SETPOS`)以收到系統的 `ABN_FULLSCREENAPP` 通知,再加上前景視窗切換事件,兩者都等 250 ms 讓視窗大小穩定後判斷一次,不輪詢。判斷:`SHQueryUserNotificationState` 回報 D3D 獨佔全螢幕/簡報模式;或依 Z 順序找出膠囊所在螢幕上最上面的一般視窗(略過工具視窗、被 DWM 隱藏的視窗、桌面與工作列),它蓋滿整個螢幕、且不是「有標題列的一般最大化」就算全螢幕。 |
+| 開機啟動 | `HKCU\...\Run`,值為 `"Island.exe 完整路徑"`。 |
 | 螢幕熱插拔 | `WM_DISPLAYCHANGE`、`WM_DPICHANGED`、`SystemEvents.DisplaySettingsChanged`、睡眠喚醒 → 400 ms 去抖動後定位,1.5 秒後再確認一次。拔掉外接螢幕時 Windows 會把筆電螢幕改成主螢幕,`"primary"` 模式自然會跟過去。 |
 
 ## 效能量測(2026-11-22,Release 建置,16 執行緒 CPU,1920×1080 @100%)
@@ -245,16 +252,25 @@ dotnet-counters monitor -n Island --counters System.Runtime
 7. 按 Alt+Tab 並看工作列:都不應該出現 Island。
 8. 右鍵膠囊 →「結束」。
 
+## 全螢幕隱藏與開機啟動驗收(自動化測試)
+
+| 情境 | 結果 |
+|---|---|
+| 主螢幕開一個無邊框、蓋滿螢幕的視窗 | ✅ 隱藏;關掉後出現 |
+| 一般最大化視窗 | ✅ 不隱藏 |
+| 另一個螢幕(筆電)全螢幕 | ✅ 不隱藏 |
+| 同一個視窗從小視窗切成全螢幕再切回(模擬 F11,不換前景) | ✅ 隱藏 → 出現 |
+| 無邊框最大化 | ✅ 隱藏 |
+| 右鍵 → 勾選「開機時啟動」 | ✅ `HKCU\...\Run\Island` 寫入 exe 路徑 |
+
 ## 已知事項
 
-- 全螢幕程式(遊戲、影片)也會被膠囊蓋住。之後可以偵測全螢幕前景視窗並自動隱藏。
+- 全螢幕隱藏判斷的是「該螢幕上最上面的一般視窗」:全螢幕影片上方如果開了一個小視窗(例如在同一螢幕上跳出聊天視窗),膠囊會暫時出現,關掉小視窗就再隱藏。
 - 右鍵選單開啟時,選單本身可能短暫取得焦點(這是 WPF ContextMenu 的行為),關閉後就不會影響。
-- 開機自動啟動尚未實作(可以先手動把捷徑放進 `shell:startup`)。
 
 ## 之後可以做的(第 3 階段候選)
 
-1. **全螢幕時自動隱藏**:偵測前景視窗是否為全螢幕(遊戲、影片),是的話隱藏膠囊。可以沿用 `EVENT_SYSTEM_FOREGROUND` 事件,不需要輪詢。
-2. **開機自動啟動**:寫入 `HKCU\Software\Microsoft\Windows\CurrentVersion\Run`,不需要系統管理員權限。可做成右鍵選單的開關。
+1. ~~全螢幕時自動隱藏~~、~~開機自動啟動~~:已完成。
 3. **媒體模組**:用 `GlobalSystemMediaTransportControlsSessionManager` 顯示正在播放的歌曲,提供播放/暫停/上一首/下一首;收合時左側顯示小圖示。
 4. **Shelf 進階**:拖入文字/網址/圖片(目前只接收檔案)、多選、較大的縮圖(`IShellItemImageFactory`)、選擇性複製到 Shelf 資料夾。
 5. **設定畫面**:在右鍵選單加「設定」,選螢幕、開關模組,不用手動改 JSON。

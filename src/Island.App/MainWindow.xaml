@@ -64,7 +64,10 @@
                 DragLeave="OnCapsuleDragLeave"
                 Drop="OnCapsuleDrop">
             <Border.ContextMenu>
-                <ContextMenu>
+                <ContextMenu Opened="OnContextMenuOpened">
+                    <MenuItem x:Name="AutoStartItem" Header="開機時啟動" IsCheckable="True" Click="OnAutoStartClick" />
+                    <MenuItem x:Name="HideInFullscreenItem" Header="全螢幕時隱藏" IsCheckable="True" Click="OnHideInFullscreenClick" />
+                    <Separator />
                     <MenuItem Header="結束" Click="OnExitClick" />
                 </ContextMenu>
             </Border.ContextMenu>

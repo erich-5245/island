@@ -35,6 +35,7 @@ public partial class App : Application
         };
 
         var settings = IslandSettings.Load();
+        AutoStart.RefreshPathIfEnabled();
         Log.Write($"Island 啟動 v{typeof(App).Assembly.GetName().Version} pid={Environment.ProcessId}");
 
         if (settings.SoftwareRendering)

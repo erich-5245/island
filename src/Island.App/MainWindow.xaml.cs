@@ -43,6 +43,8 @@ public partial class MainWindow : Window, IShellController
     private IntPtr _hwnd;
     private TopmostKeeper? _topmost;
     private DisplayWatcher? _displays;
+    private FullscreenWatcher? _fullscreen;
+    private IntPtr _monitor;
 
     private bool _expanded;
     private IIslandModule? _active;
@@ -74,7 +76,7 @@ public partial class MainWindow : Window, IShellController
         _leaveTimer.Tick += OnLeaveTimerTick;
 
         BuildCollapsedContent();
-        Closed += (_, _) => { _leaveTimer.Stop(); _topmost?.Dispose(); _displays?.Dispose(); };
+        Closed += (_, _) => { _leaveTimer.Stop(); _topmost?.Dispose(); _displays?.Dispose(); _fullscreen?.Dispose(); };
     }
 
     // ── 視窗建立 ──────────────────────────────────────────
@@ -94,11 +96,20 @@ public partial class MainWindow : Window, IShellController
         _topmost = new TopmostKeeper(_hwnd);
         _displays = new DisplayWatcher(Dispatcher, () => Reposition("螢幕變更"));
         Reposition("啟動");
+
+        _fullscreen = new FullscreenWatcher(_hwnd, Dispatcher, () => _monitor, OnFullscreenChanged);
+        _topmost.ForegroundChanged += () => { if (_settings.HideInFullscreen) _fullscreen.Schedule(); };
         Loaded += (_, _) => Reposition("載入完成");
     }
 
     private IntPtr WndProc(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
     {
+        if (_fullscreen is not null && _fullscreen.HandleMessage(msg, wParam))
+        {
+            if (_settings.HideInFullscreen) handled = true;
+            return IntPtr.Zero;
+        }
+
         switch (msg)
         {
             case WM_MOUSEACTIVATE:
@@ -136,6 +147,52 @@ public partial class MainWindow : Window, IShellController
 
         SetWindowPos(_hwnd, HWND_TOPMOST, x, y, w, h, SWP_NOACTIVATE | SWP_NOOWNERZORDER);
         Log.Write($"[{reason}] 定位到 {monitor} → 視窗 ({x},{y}) {w}x{h}");
+
+        _monitor = monitor.Handle;
+        if (_settings.HideInFullscreen) _fullscreen?.Schedule();
+    }
+
+    // ── 全螢幕時隱藏 ─────────────────────────────────────
+
+    private void OnFullscreenChanged(bool fullscreen)
+    {
+        if (!_settings.HideInFullscreen) fullscreen = false;
+        Log.Write(fullscreen ? "偵測到全螢幕程式 → 隱藏" : "全螢幕結束 → 顯示");
+        if (fullscreen)
+        {
+            Collapse(force: true);
+            Hide();
+        }
+        else if (!IsVisible)
+        {
+            Show();                 // ShowActivated=false,不會搶焦點
+            _topmost?.Reassert();
+        }
+    }
+
+    // ── 右鍵選單 ─────────────────────────────────────────
+
+    private void OnContextMenuOpened(object sender, RoutedEventArgs e)
+    {
+        AutoStartItem.IsChecked = AutoStart.IsEnabled;
+        HideInFullscreenItem.IsChecked = _settings.HideInFullscreen;
+    }
+
+    private void OnAutoStartClick(object sender, RoutedEventArgs e)
+    {
+        try { AutoStart.Set(AutoStartItem.IsChecked); }
+        catch (Exception ex)
+        {
+            Log.Write($"設定開機自動啟動失敗:{ex.Message}");
+            AutoStartItem.IsChecked = AutoStart.IsEnabled;
+        }
+    }
+
+    private void OnHideInFullscreenClick(object sender, RoutedEventArgs e)
+    {
+        _settings.HideInFullscreen = HideInFullscreenItem.IsChecked;
+        _settings.Save();
+        if (_settings.HideInFullscreen) _fullscreen?.Evaluate();
     }
 
     // ── 收合內容 ─────────────────────────────────────────
