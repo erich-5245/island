@@ -30,6 +30,16 @@ internal sealed class IslandHost(Dispatcher dispatcher) : IIslandHost
 
     public IDisposable HoldExpanded() => Shell?.HoldExpanded() ?? EmptyDisposable.Instance;
 
+    public void SetAccent(System.Windows.Media.Color? color)
+    {
+        if (!Dispatcher.CheckAccess())
+        {
+            Dispatcher.BeginInvoke(() => SetAccent(color));
+            return;
+        }
+        AccentTheme.Set(color);
+    }
+
     public void Announce(string moduleId, TimeSpan duration)
     {
         if (!Dispatcher.CheckAccess())

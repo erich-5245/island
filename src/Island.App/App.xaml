@@ -7,5 +7,85 @@
         <SolidColorBrush x:Key="CapsuleBrush" Color="#0A0A0A" />
         <SolidColorBrush x:Key="PrimaryTextBrush" Color="#FFFFFF" />
         <SolidColorBrush x:Key="SecondaryTextBrush" Color="#9A9A9A" />
+
+        <!--
+          右鍵選單(全程式共用,Shelf 的檔案選單也會套用):
+          深灰底 + 細邊框 + 圓角;可勾選的項目顯示成開關,開啟時是強調色(跟著專輯封面)。
+        -->
+        <SolidColorBrush x:Key="MenuBackground" Color="#2C2C2E" />
+        <SolidColorBrush x:Key="MenuBorder" Color="#3A3A3C" />
+        <SolidColorBrush x:Key="MenuHover" Color="#3A3A3C" />
+        <SolidColorBrush x:Key="SwitchOff" Color="#48484A" />
+
+        <Style TargetType="ContextMenu">
+            <Setter Property="OverridesDefaultStyle" Value="True" />
+            <Setter Property="HasDropShadow" Value="False" />
+            <Setter Property="FontFamily" Value="{StaticResource IslandFont}" />
+            <Setter Property="FontSize" Value="12.5" />
+            <Setter Property="Foreground" Value="#EEEEEE" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ContextMenu">
+                        <Border Background="{StaticResource MenuBackground}" BorderBrush="{StaticResource MenuBorder}"
+                                BorderThickness="1" CornerRadius="12" Padding="5" MinWidth="180">
+                            <ItemsPresenter KeyboardNavigation.DirectionalNavigation="Cycle" />
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style TargetType="MenuItem">
+            <Setter Property="OverridesDefaultStyle" Value="True" />
+            <Setter Property="Foreground" Value="#EEEEEE" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="MenuItem">
+                        <Border x:Name="Bg" CornerRadius="7" Padding="10,7" Background="Transparent">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <ContentPresenter ContentSource="Header" RecognizesAccessKey="True"
+                                                  VerticalAlignment="Center" />
+                                <Border x:Name="Switch" Grid.Column="1" Width="30" Height="17" CornerRadius="8.5"
+                                        Margin="18,0,0,0" Background="{StaticResource SwitchOff}" Visibility="Collapsed">
+                                    <Ellipse x:Name="Knob" Width="13" Height="13" Margin="2,0"
+                                             Fill="White" HorizontalAlignment="Left" />
+                                </Border>
+                            </Grid>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsCheckable" Value="True">
+                                <Setter TargetName="Switch" Property="Visibility" Value="Visible" />
+                            </Trigger>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="Switch" Property="Background" Value="{DynamicResource Island.Accent}" />
+                                <Setter TargetName="Knob" Property="HorizontalAlignment" Value="Right" />
+                                <Setter TargetName="Knob" Property="Fill" Value="{DynamicResource Island.OnAccent}" />
+                            </Trigger>
+                            <Trigger Property="IsHighlighted" Value="True">
+                                <Setter TargetName="Bg" Property="Background" Value="{StaticResource MenuHover}" />
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Foreground" Value="#6E6E6E" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="{x:Static MenuItem.SeparatorStyleKey}" TargetType="Separator">
+            <Setter Property="OverridesDefaultStyle" Value="True" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Separator">
+                        <Border Height="1" Margin="8,4" Background="{StaticResource MenuBorder}" />
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
     </Application.Resources>
 </Application>

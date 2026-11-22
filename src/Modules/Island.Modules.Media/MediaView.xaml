@@ -7,7 +7,7 @@
         <SolidColorBrush x:Key="Dim" Color="#6E6E6E" />
 
         <Style x:Key="ControlButton" TargetType="Button">
-            <Setter Property="Foreground" Value="White" />
+            <Setter Property="Foreground" Value="{DynamicResource Island.AccentSoft}" />
             <Setter Property="FontFamily" Value="Segoe Fluent Icons, Segoe MDL2 Assets" />
             <Setter Property="FontSize" Value="14" />
             <Setter Property="Width" Value="32" />
@@ -22,7 +22,7 @@
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="Bg" Property="Background" Value="#262626" />
+                                <Setter TargetName="Bg" Property="Background" Value="{DynamicResource Island.AccentDim}" />
                             </Trigger>
                             <Trigger Property="IsEnabled" Value="False">
                                 <Setter Property="Foreground" Value="#4A4A4A" />
@@ -57,10 +57,10 @@
                     <ControlTemplate TargetType="Slider">
                         <Track x:Name="PART_Track" Height="16">
                             <Track.DecreaseRepeatButton>
-                                <RepeatButton Style="{StaticResource FillRepeat}" Background="White" />
+                                <RepeatButton Style="{StaticResource FillRepeat}" Background="{DynamicResource Island.Accent}" />
                             </Track.DecreaseRepeatButton>
                             <Track.IncreaseRepeatButton>
-                                <RepeatButton Style="{StaticResource FillRepeat}" Background="#333333" />
+                                <RepeatButton Style="{StaticResource FillRepeat}" Background="{DynamicResource Island.AccentTrack}" />
                             </Track.IncreaseRepeatButton>
                             <Track.Thumb>
                                 <Thumb Width="12" Height="12">
@@ -130,13 +130,13 @@
                     <ColumnDefinition Width="*" />
                     <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
-                <TextBlock x:Name="PositionText" FontSize="10.5" Foreground="{StaticResource Secondary}"
+                <TextBlock x:Name="PositionText" FontSize="10.5" Foreground="{DynamicResource Island.AccentMuted}"
                            VerticalAlignment="Center" MinWidth="30" />
                 <Grid Grid.Column="1" Margin="8,0" VerticalAlignment="Center" Height="4">
-                    <Border CornerRadius="2" Background="#333333" />
-                    <Border x:Name="ProgressFill" CornerRadius="2" Background="White" HorizontalAlignment="Left" Width="0" />
+                    <Border CornerRadius="2" Background="{DynamicResource Island.AccentTrack}" />
+                    <Border x:Name="ProgressFill" CornerRadius="2" Background="{DynamicResource Island.Accent}" HorizontalAlignment="Left" Width="0" />
                 </Grid>
-                <TextBlock x:Name="DurationText" Grid.Column="2" FontSize="10.5" Foreground="{StaticResource Secondary}"
+                <TextBlock x:Name="DurationText" Grid.Column="2" FontSize="10.5" Foreground="{DynamicResource Island.AccentMuted}"
                            VerticalAlignment="Center" MinWidth="30" TextAlignment="Right" />
             </Grid>
 
@@ -148,12 +148,12 @@
                     <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
                 <Button x:Name="MuteButton" Content="&#xE995;" Style="{StaticResource ControlButton}"
-                        Width="26" Height="24" FontSize="13" Foreground="{StaticResource Secondary}"
+                        Width="26" Height="24" FontSize="13" Foreground="{DynamicResource Island.AccentMuted}"
                         Margin="-2,0,0,0" Click="OnMuteClick" ToolTip="靜音" />
                 <Slider x:Name="VolumeSlider" Grid.Column="1" Style="{StaticResource VolumeSlider}"
                         Margin="6,0,8,0" VerticalAlignment="Center"
                         ValueChanged="OnVolumeChanged" PreviewMouseWheel="OnVolumeWheel" />
-                <TextBlock x:Name="VolumeText" Grid.Column="2" FontSize="10.5" Foreground="{StaticResource Secondary}"
+                <TextBlock x:Name="VolumeText" Grid.Column="2" FontSize="10.5" Foreground="{DynamicResource Island.AccentMuted}"
                            VerticalAlignment="Center" MinWidth="30" TextAlignment="Right" />
             </Grid>
         </Grid>

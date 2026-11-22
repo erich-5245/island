@@ -41,6 +41,8 @@ public partial class App : Application
         if (settings.SoftwareRendering)
             RenderOptions.ProcessRenderMode = RenderMode.SoftwareOnly;
 
+        AccentTheme.Install(Resources);
+
         var host = new IslandHost(Dispatcher);
         _modules = ModuleLoader.LoadAll(settings, host);
 

@@ -349,6 +349,7 @@ public partial class MainWindow : Window, IShellController
         if (_expanded) return;
 
         _expanded = true;
+        ApplyCapsuleChrome();
         _peeking = false;
         _announcing = false;
         _announceTimer.Stop();
@@ -372,7 +373,7 @@ public partial class MainWindow : Window, IShellController
         _outsideClick.Stop();
         _leaveTimer.Stop();
         _dragInside = false;
-        Capsule.BorderBrush = Brushes.Transparent;
+        ApplyCapsuleChrome();
         Capsule.CornerRadius = new CornerRadius(_collapsedSize.Height / 2);
 
         // 滑鼠還在島上 → 回到「預覽」一排字;否則回到收合
@@ -405,8 +406,26 @@ public partial class MainWindow : Window, IShellController
             return;
         }
 
-        Capsule.BorderBrush = Brushes.Transparent;
+        ApplyCapsuleChrome();
         if (++_outsideTicks >= LeaveTicksToCollapse) Collapse();
+    }
+
+    /// <summary>
+    /// 膠囊的底色與邊框:展開時用面板色(有強調色時帶一點色調),收合/預覽時是黑色 + 膠囊邊框。
+    /// 都是 DynamicResource,強調色變化時自動漸變。
+    /// </summary>
+    private void ApplyCapsuleChrome()
+    {
+        if (_expanded)
+        {
+            Capsule.SetResourceReference(Border.BackgroundProperty, IslandTheme.PanelBackground);
+            Capsule.SetResourceReference(Border.BorderBrushProperty, IslandTheme.PanelBorder);
+        }
+        else
+        {
+            Capsule.SetResourceReference(Border.BackgroundProperty, "CapsuleBrush");
+            Capsule.SetResourceReference(Border.BorderBrushProperty, IslandTheme.CapsuleBorder);
+        }
     }
 
     private bool IsCursorOverCapsule()
@@ -646,7 +665,7 @@ public partial class MainWindow : Window, IShellController
     private void OnCapsuleDrop(object sender, DragEventArgs e)
     {
         _dragInside = false;
-        Capsule.BorderBrush = Brushes.Transparent;
+        ApplyCapsuleChrome();
         e.Handled = true;
 
         var found = FindDropTarget(e.Data);

@@ -31,4 +31,10 @@ public interface IIslandHost
     /// 例如換歌時讓膠囊出現 3 秒再隱藏。島已經展開或滑鼠正在島上時不會有動作。
     /// </summary>
     void Announce(string moduleId, TimeSpan duration);
+
+    /// <summary>
+    /// 設定整個島的強調色(見 <see cref="IslandTheme"/>),例如正在播放的專輯主色;
+    /// null = 回到中性黑白。可從任何執行緒呼叫。
+    /// </summary>
+    void SetAccent(System.Windows.Media.Color? color);
 }

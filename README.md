@@ -26,6 +26,12 @@
 
 Shelf 只記住檔案**路徑**,不會複製檔案。清單存在 `%LOCALAPPDATA%\Island\modules\shelf\shelf.json`,重新啟動後保留;已經不存在的檔案會在展開時自動移除。收合時膠囊右側顯示「Shelf N」。
 
+## 外觀
+
+- 黑色膠囊;展開面板、分頁、進度條、音量條、膠囊邊框都使用**強調色**。
+- **強調色跟著專輯封面**:播放中從封面取出代表色(縮成 24×24,依色相分 24 格,以飽和度加權投票),推出整組深淺(面板底色帶一點色調、分頁底色、亮色進度條…),換歌時 450 ms 漸變。黑白/灰階封面或沒在播放時用中性的黑白灰。
+- **右鍵選單**:深灰底(#2C2C2E)+ 細邊框 + 圓角,可勾選的項目是開關,開啟時是強調色;點開關選單不會關閉。Shelf 檔案的右鍵選單也套用同樣樣式。
+
 ## 需求
 
 - Windows 10/11
@@ -98,7 +104,7 @@ src/
     App.xaml(.cs)                啟動:Mutex、讀設定、載入模組、建立視窗
     MainWindow.xaml(.cs)         透明視窗 + 膠囊(左 | 中 | 右 三欄)、右鍵選單、定位
     app.manifest                 asInvoker + Per-Monitor V2 DPI
-    Infrastructure/              AppPaths、Log、IslandSettings(settings.json)
+    Infrastructure/              AppPaths、Log、IslandSettings(settings.json)、AutoStart、AccentTheme(強調色筆刷與漸變)
     Interop/
       NativeMethods.cs           Win32 P/Invoke
       MonitorInfo.cs             列出螢幕、依設定選螢幕(實體像素 + DPI)
@@ -116,6 +122,7 @@ src/
     IIslandPeekProvider.cs       選用:滑鼠移過去(一排字)時左側的內容,Clock 用它顯示日期
     IIslandActivity.cs           選用:「正在進行的活動」。有活動時預覽改顯示 CreateActivityView;IIslandHost.Announce 可讓膠囊短暫出現
     IslandModuleBase.cs          模組基底類別(SetBadge 會自動通知外殼)
+    IslandTheme.cs               主題筆刷資源鍵(Island.Accent 等),模組用 DynamicResource 取用
   Modules/
     Directory.Build.props        所有模組自動引用 Island.Core
     Island.Modules.Clock/        時間模組:對齊整分鐘的單次計時器;展開畫面顯示大時間 + 日期
@@ -124,6 +131,7 @@ src/
       MediaView.xaml(.cs)        播放分頁:封面、歌名、進度、控制按鈕
       MediaActivityView.cs       播放中的一排字(預覽、換歌提示)
       SystemVolume.cs            Core Audio IAudioEndpointVolume:系統主音量、靜音、變更通知
+      AlbumColor.cs              從封面取代表色(灰階回傳 null)
     Island.Modules.Shelf/
       ShelfModule.cs             清單、拖入/拖出、保存、Badge
       ShelfView.xaml(.cs)        展開畫面:圖示格狀清單、標題列、空白提示
@@ -194,6 +202,7 @@ public sealed class XxxModule : IslandModuleBase
 | 閒置隱藏 + 熱區 | 視窗貼齊螢幕頂端,膠囊用 Margin 往下 `topOffset`。閒置時膠囊 Opacity = 0(像素 alpha 0,系統直接讓滑鼠穿透);熱區是 alpha 1/255 的細條,看不見但收得到滑鼠與拖放。熱區與膠囊包在同一個 Grid 裡,滑鼠進出只看這個 Grid。 |
 | 點外面收合 | 不取得焦點的視窗收不到失焦事件,所以只在「固定展開」期間掛 `WH_MOUSE_LL`,收合時立刻卸下。掛勾裡只用 `WindowFromPoint` 判斷點到的視窗是不是本程式(膠囊、右鍵選單都算裡面),收合排到 UI 執行緒稍後執行。 |
 | 正在播放 | `GlobalSystemMediaTransportControlsSessionManager`,和 Windows 音量提示框的媒體卡片是同一套,所以有接系統媒體控制的程式都支援。訂閱所有工作階段的播放狀態/歌曲資訊事件,優先顯示「正在播放」的那個;事件 60 ms 去抖動後才重新讀取。瀏覽器播放時約每 4～5 秒送一次時間軸更新,收合時直接忽略,展開時才讀;進度條只在展開於播放分頁且正在播放時每秒更新。封面以 160 px 解碼並凍結。換歌判斷:來源 + 標題 + 歌手改變且正在播放 → `IIslandHost.Announce(3 秒)`,啟動時讀到的第一首不算。音量只在展開時開啟 Core Audio 端點並註冊通知(每次重新取得預設裝置),收合即釋放;自己設定時帶固定的 event context GUID,收到通知時用它忽略自己造成的變更。 |
+| 強調色 | 主題筆刷放在 Application.Resources,所有用到的地方是 DynamicResource。放進資源字典的筆刷會被 WPF 凍結、不能做 ColorAnimation,所以換色時用計時器分 12 步、每步放一支新的凍結筆刷(只在換歌時跑)。模組透過 `IIslandHost.SetAccent(Color?)` 設定。 |
 | 開機啟動 | `HKCU\...\Run`,值為 `"Island.exe 完整路徑"`。 |
 | 螢幕熱插拔 | `WM_DISPLAYCHANGE`、`WM_DPICHANGED`、`SystemEvents.DisplaySettingsChanged`、睡眠喚醒 → 400 ms 去抖動後定位,1.5 秒後再確認一次。拔掉外接螢幕時 Windows 會把筆電螢幕改成主螢幕,`"primary"` 模式自然會跟過去。 |
 
@@ -203,7 +212,9 @@ public sealed class XxxModule : IslandModuleBase
 
 | 情況 | CPU | 工作管理員「記憶體」 | Private Bytes | Working Set | 執行緒 |
 |---|---|---|---|---|---|
-| 播放中、膠囊隱藏,啟動 15 秒後量 60 秒 | 63 ms / 60 s ≈ 0.1% 單核 | **23.6 MB** | — | — | — |
+| 播放中、膠囊隱藏,沒有換歌的 60 秒(加入封面取色後) | **0 ms** | **35.8 MB** | — | — | — |
+| 同上,但這 60 秒內換了一首歌(換歌提示動畫 + 取色 + 漸變) | 約 1.4 s | — | — | — | — |
+| 播放中、膠囊隱藏,啟動 15 秒後量 60 秒(加入取色前) | 63 ms / 60 s ≈ 0.1% 單核 | 23.6 MB | — | — | — |
 | (前一版:播放中常駐小膠囊)量 90 秒 | 109 ms / 90 s ≈ 0.12% 單核 | 24.3 MB | 49.5 MB | 114.6 MB | 10 |
 
 第一版沒有忽略時間軸事件,同樣情況是 400 ms / 90 s,改了之後降到上面的數字。
@@ -311,6 +322,9 @@ dotnet-counters monitor -n Island --counters System.Runtime
 
 ## 已知事項
 
+- 換歌時的提示動畫用軟體算圖,一次換歌約花 1 秒多 CPU(平均下來每首歌約 0.5% 單核);沒換歌時是 0。
+- 有些網站換歌時會先送舊的封面再送新的,強調色可能短暫閃一下別的顏色。
+
 - 熱區會擋住螢幕最上緣中間一小塊(預設 200 × 12 DIP)的點擊,例如剛好在那裡的瀏覽器分頁的最上緣幾個像素。
 - 同時有多個來源在播放時,顯示系統列出的第一個正在播放的來源。
 - 有些程式不提供封面或進度(例如部分網站),這時顯示預設圖示、隱藏進度條。
@@ -323,6 +337,6 @@ dotnet-counters monitor -n Island --counters System.Runtime
 
 1. ~~全螢幕時自動隱藏~~、~~開機自動啟動~~:已完成。
 3. ~~媒體模組~~:已完成。之後可加:點進度條跳轉(`TryChangePlaybackPositionAsync`)、多個來源切換。
-6. **UI 設計**:統一右鍵選單(目前是 WPF 預設樣式,太樸素)、展開面板、分頁的視覺風格。
+6. ~~UI 設計~~:已完成(封面取色 + 深灰開關選單)。之後可再統一 Shelf / 時間分頁的細節。
 4. **Shelf 進階**:拖入文字/網址/圖片(目前只接收檔案)、多選、較大的縮圖(`IShellItemImageFactory`)、選擇性複製到 Shelf 資料夾。
 5. **設定畫面**:在右鍵選單加「設定」,選螢幕、開關模組,不用手動改 JSON。

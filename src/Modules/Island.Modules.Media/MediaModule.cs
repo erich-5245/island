@@ -196,11 +196,14 @@ public sealed class MediaModule : IslandModuleBase, IIslandActivity, IIslandExpa
                 if (version != _mediaVersion) return;   // 等待期間又換歌了,交給下一次
                 var thumb = await LoadThumbnailAsync(props?.Thumbnail);
                 if (version != _mediaVersion) return;
+                var albumColor = AlbumColor.Extract(thumb as BitmapSource);
+                Host.Log($"媒體:{props?.Title} 封面主色 {(albumColor?.ToString() ?? "無(灰階/無封面)")}");
                 snapshot = ReadPlayback(session, snapshot with
                 {
                     Title = props?.Title ?? "",
                     Artist = string.IsNullOrEmpty(props?.Artist) ? props?.AlbumArtist ?? "" : props!.Artist,
                     Thumbnail = thumb,
+                    AlbumColor = albumColor,
                 });
             }
 
@@ -261,6 +264,7 @@ public sealed class MediaModule : IslandModuleBase, IIslandActivity, IIslandExpa
     private void Apply(MediaSnapshot snapshot)
     {
         Current = snapshot;
+        UpdateAccent();
         _view?.Update(snapshot);
         _activityView?.Update(snapshot);
         UpdateProgressTimer();
@@ -292,9 +296,21 @@ public sealed class MediaModule : IslandModuleBase, IIslandActivity, IIslandExpa
     {
         if (_activityActive == active) return;
         _activityActive = active;
+        UpdateAccent();
         Host.Log(active ? $"媒體:開始播放 {Current.AppName}" : "媒體:停止播放");
         ActivityChanged?.Invoke(this, EventArgs.Empty);
     }
+
+    /// <summary>播放中(含暫停後的短暫緩衝)用專輯主色當整個島的強調色;否則回到中性。</summary>
+    private void UpdateAccent()
+    {
+        Color? accent = _activityActive || Current.IsPlaying ? Current.AlbumColor : null;
+        if (Nullable.Equals(accent, _accent)) return;
+        _accent = accent;
+        Host.SetAccent(accent);
+    }
+
+    private Color? _accent;
 
     // ── 控制 ─────────────────────────────────────────────
 
@@ -398,6 +414,8 @@ public sealed record MediaSnapshot
     public string Title { get; init; } = "";
     public string Artist { get; init; } = "";
     public ImageSource? Thumbnail { get; init; }
+    /// <summary>封面代表色;黑白封面為 null。</summary>
+    public Color? AlbumColor { get; init; }
     public bool IsPlaying { get; init; }
     public bool CanPrevious { get; init; }
     public bool CanNext { get; init; }

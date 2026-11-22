@@ -30,8 +30,8 @@
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsChecked" Value="True">
-                                <Setter TargetName="Bg" Property="Background" Value="#262626" />
-                                <Setter Property="Foreground" Value="White" />
+                                <Setter TargetName="Bg" Property="Background" Value="{DynamicResource Island.AccentDim}" />
+                                <Setter Property="Foreground" Value="{DynamicResource Island.AccentSoft}" />
                             </Trigger>
                             <Trigger Property="IsMouseOver" Value="True">
                                 <Setter Property="Foreground" Value="White" />
@@ -64,10 +64,10 @@
             Drop="OnCapsuleDrop">
         <Grid.ContextMenu>
             <ContextMenu Opened="OnContextMenuOpened">
-                <MenuItem x:Name="AutoStartItem" Header="開機時啟動" IsCheckable="True" Click="OnAutoStartClick" />
-                <MenuItem x:Name="HideInFullscreenItem" Header="全螢幕時隱藏" IsCheckable="True" Click="OnHideInFullscreenClick" />
-                <MenuItem x:Name="HideWhenIdleItem" Header="閒置時隱藏" IsCheckable="True" Click="OnHideWhenIdleClick" />
-                <MenuItem x:Name="AnnounceItem" Header="切歌時顯示" IsCheckable="True" Click="OnAnnounceClick" />
+                <MenuItem x:Name="AutoStartItem" Header="開機時啟動" IsCheckable="True" StaysOpenOnClick="True" Click="OnAutoStartClick" />
+                <MenuItem x:Name="HideInFullscreenItem" Header="全螢幕時隱藏" IsCheckable="True" StaysOpenOnClick="True" Click="OnHideInFullscreenClick" />
+                <MenuItem x:Name="HideWhenIdleItem" Header="閒置時隱藏" IsCheckable="True" StaysOpenOnClick="True" Click="OnHideWhenIdleClick" />
+                <MenuItem x:Name="AnnounceItem" Header="切歌時顯示" IsCheckable="True" StaysOpenOnClick="True" Click="OnAnnounceClick" />
                 <Separator />
                 <MenuItem Header="結束" Click="OnExitClick" />
             </ContextMenu>
@@ -85,7 +85,7 @@
                 HorizontalAlignment="Center" VerticalAlignment="Top"
                 CornerRadius="18"
                 Background="{StaticResource CapsuleBrush}"
-                BorderBrush="Transparent" BorderThickness="1"
+                BorderBrush="{DynamicResource Island.CapsuleBorder}" BorderThickness="1"
                 MouseLeftButtonUp="OnCapsuleClick">
 
             <Grid ClipToBounds="True">

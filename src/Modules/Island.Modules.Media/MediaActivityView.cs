@@ -58,9 +58,9 @@ internal sealed class MediaActivityView : Grid
             Text = "\uE995",   // 音量圖示,表示「正在發出聲音」
             FontFamily = new FontFamily("Segoe Fluent Icons, Segoe MDL2 Assets"),
             FontSize = 12,
-            Foreground = new SolidColorBrush(Color.FromRgb(0x9A, 0x9A, 0x9A)),
             VerticalAlignment = VerticalAlignment.Center,
         };
+        indicator.SetResourceReference(TextBlock.ForegroundProperty, Island.Core.IslandTheme.Accent);
         SetColumn(indicator, 2);
         Children.Add(indicator);
 
