@@ -29,8 +29,16 @@ internal sealed class TopmostKeeper : IDisposable
 
     private void OnForegroundChanged(IntPtr hook, uint evt, IntPtr hwnd, int idObject, int idChild, uint thread, uint time)
     {
-        Reassert();
-        ForegroundChanged?.Invoke();
+        // 系統回呼:例外不能丟回原生程式碼(會讓整個程式結束)
+        try
+        {
+            Reassert();
+            ForegroundChanged?.Invoke();
+        }
+        catch (Exception ex)
+        {
+            Infrastructure.Log.Write($"前景視窗事件處理失敗:{ex.Message}");
+        }
     }
 
     public void Dispose()

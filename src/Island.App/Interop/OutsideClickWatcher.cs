@@ -47,16 +47,21 @@ internal sealed class OutsideClickWatcher : IDisposable
     private IntPtr HookProc(int nCode, IntPtr wParam, IntPtr lParam)
     {
         // 掛勾必須很快返回:只判斷點擊位置屬於誰,真正的收合排到 UI 執行緒稍後做
-        if (nCode >= 0)
+        // 系統回呼:例外不能丟回原生程式碼(會讓整個程式結束)
+        try
         {
-            int msg = wParam.ToInt32();
-            if (msg is WM_LBUTTONDOWN or WM_RBUTTONDOWN or WM_MBUTTONDOWN)
+            if (nCode >= 0)
             {
-                var info = Marshal.PtrToStructure<MSLLHOOKSTRUCT>(lParam);
-                GetWindowThreadProcessId(WindowFromPoint(info.pt), out uint pid);
-                if (pid != _pid) _dispatcher.BeginInvoke(_clickedOutside);
+                int msg = wParam.ToInt32();
+                if (msg is WM_LBUTTONDOWN or WM_RBUTTONDOWN or WM_MBUTTONDOWN)
+                {
+                    var info = Marshal.PtrToStructure<MSLLHOOKSTRUCT>(lParam);
+                    GetWindowThreadProcessId(WindowFromPoint(info.pt), out uint pid);
+                    if (pid != _pid) _dispatcher.BeginInvoke(_clickedOutside);
+                }
             }
         }
+        catch { /* 忽略,照常交給下一個掛勾 */ }
         return CallNextHookEx(_hook, nCode, wParam, lParam);
     }
 
