@@ -231,6 +231,7 @@ public sealed class MediaModule : IslandModuleBase, IIslandActivity, IIslandExpa
             IsPlaying = info?.PlaybackStatus == PlaybackStatus.Playing,
             CanPrevious = controls?.IsPreviousEnabled ?? false,
             CanNext = controls?.IsNextEnabled ?? false,
+            CanSeek = controls?.IsPlaybackPositionEnabled ?? false,
             CanPlayPause = (controls?.IsPlayPauseToggleEnabled ?? false)
                            || (controls?.IsPlayEnabled ?? false) || (controls?.IsPauseEnabled ?? false),
             Position = timeline is null ? TimeSpan.Zero : timeline.Position - timeline.StartTime,
@@ -318,6 +319,26 @@ public sealed class MediaModule : IslandModuleBase, IIslandActivity, IIslandExpa
     private Color? _accent;
 
     // ── 控制 ─────────────────────────────────────────────
+
+    /// <summary>跳到整首的某個比例(0~1)。畫面先樂觀更新,系統之後會送時間軸通知校正。</summary>
+    public async void Seek(double fraction)
+    {
+        var session = _session;
+        if (session is null || Current.Duration <= TimeSpan.Zero) return;
+        try
+        {
+            var timeline = session.GetTimelineProperties();
+            var target = TimeSpan.FromTicks((long)(Current.Duration.Ticks * Math.Clamp(fraction, 0, 1)));
+            Current = Current with { Position = target, PositionUpdatedAt = DateTimeOffset.Now };
+            _view?.UpdateProgress(Current);
+            bool ok = await session.TryChangePlaybackPositionAsync((timeline.StartTime + target).Ticks);
+            if (!ok) Host.Log("媒體:來源拒絕跳轉");
+        }
+        catch (Exception ex)
+        {
+            Host.Log($"媒體:跳轉失敗:{ex.Message}");
+        }
+    }
 
     public void TogglePlayPause() => Run(s => s.TryTogglePlayPauseAsync().AsTask());
     public void Next() => Run(s => s.TrySkipNextAsync().AsTask());
@@ -425,6 +446,8 @@ public sealed record MediaSnapshot
     public bool CanPrevious { get; init; }
     public bool CanNext { get; init; }
     public bool CanPlayPause { get; init; }
+    /// <summary>來源是否允許跳轉播放位置。</summary>
+    public bool CanSeek { get; init; }
     public TimeSpan Position { get; init; }
     public TimeSpan Duration { get; init; }
     public DateTimeOffset PositionUpdatedAt { get; init; }

@@ -132,9 +132,13 @@
                 </Grid.ColumnDefinitions>
                 <TextBlock x:Name="PositionText" FontSize="10.5" Foreground="{DynamicResource Island.AccentMuted}"
                            VerticalAlignment="Center" MinWidth="30" />
-                <Grid Grid.Column="1" Margin="8,0" VerticalAlignment="Center" Height="4">
-                    <Border CornerRadius="2" Background="{DynamicResource Island.AccentTrack}" />
-                    <Border x:Name="ProgressFill" CornerRadius="2" Background="{DynamicResource Island.Accent}" HorizontalAlignment="Left" Width="0" />
+                <!-- 外層透明、比較高,好點;點一下跳到那個位置 -->
+                <Grid x:Name="SeekArea" Grid.Column="1" Margin="8,0" Height="16" VerticalAlignment="Center"
+                      Background="Transparent" MouseLeftButtonUp="OnSeekClick">
+                    <Grid VerticalAlignment="Center" Height="4">
+                        <Border CornerRadius="2" Background="{DynamicResource Island.AccentTrack}" />
+                        <Border x:Name="ProgressFill" CornerRadius="2" Background="{DynamicResource Island.Accent}" HorizontalAlignment="Left" Width="0" />
+                    </Grid>
                 </Grid>
                 <TextBlock x:Name="DurationText" Grid.Column="2" FontSize="10.5" Foreground="{DynamicResource Island.AccentMuted}"
                            VerticalAlignment="Center" MinWidth="30" TextAlignment="Right" />

@@ -74,6 +74,8 @@ internal sealed class IslandSettings
         ReadCommentHandling = JsonCommentHandling.Skip,
         AllowTrailingCommas = true,
         DefaultIgnoreCondition = JsonIgnoreCondition.Never,
+        // 讓 "Ctrl+Alt+I" 這類字串照原樣寫入,方便手動修改(預設會把 + 寫成 +)
+        Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
     };
 
     public static IslandSettings Load()
@@ -104,7 +106,10 @@ internal sealed class IslandSettings
     }
 
     /// <summary>修正不合理的尺寸(太小、預覽比收合窄…)。</summary>
-    private void Normalize()
+    /// <summary>叫出 / 收起島的全域快捷鍵,例如 "Ctrl+Alt+I";空字串 = 停用。</summary>
+    public string Hotkey { get; set; } = "Ctrl+Alt+I";
+
+    internal void Normalize()
     {
         CollapsedWidth = Math.Clamp(CollapsedWidth, 80, 600);
         CollapsedHeight = Math.Clamp(CollapsedHeight, 20, 80);

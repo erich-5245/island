@@ -4,6 +4,7 @@ using System.Windows.Controls;
 using System.Windows.Interop;
 using System.Windows.Media;
 using Island.App.Infrastructure;
+using System.Windows.Input;
 using Island.App.Interop;
 using Island.App.Modules;
 using Island.Core;
@@ -93,6 +94,7 @@ public partial class SettingsWindow : Window
             _settings.AnnounceActivity, on => { _settings.AnnounceActivity = on; Save(); }));
         p.Children.Add(ToggleCard("音量亮度提示", "調音量或亮度時顯示長條。",
             _settings.ShowOsd, on => { _settings.ShowOsd = on; Save(); }));
+        p.Children.Add(HotkeyCard());
         return p;
     }
 
@@ -114,19 +116,19 @@ public partial class SettingsWindow : Window
         }
         p.Children.Add(Card("顯示在哪個螢幕", "選「跟著主螢幕」時,外接螢幕拔掉會自動移到筆電螢幕。", choices, stacked: true));
 
-        p.Children.Add(Section("大小(重新啟動後套用)"));
+        p.Children.Add(Section("大小(拖動時立即套用)"));
         p.Children.Add(SliderCard("與螢幕頂端的距離", "", 0, 40, 1, _settings.TopOffset, "px",
-            v => { _settings.TopOffset = v; Save(); NeedRestart(); }));
+            v => { _settings.TopOffset = v; SaveAndApply(); }));
         p.Children.Add(SliderCard("平常的膠囊寬度", "閒置時(不隱藏)只有時間的膠囊。", 120, 320, 10, _settings.CollapsedWidth, "",
-            v => { _settings.CollapsedWidth = v; Save(); NeedRestart(); }));
+            v => { _settings.CollapsedWidth = v; SaveAndApply(); }));
         p.Children.Add(SliderCard("膠囊高度", "", 28, 48, 1, _settings.CollapsedHeight, "",
-            v => { _settings.CollapsedHeight = v; Save(); NeedRestart(); }));
+            v => { _settings.CollapsedHeight = v; SaveAndApply(); }));
         p.Children.Add(SliderCard("滑鼠移過去時的寬度", "一排字(或音樂、計時)的長條。", 240, 480, 10, _settings.PeekWidth, "",
-            v => { _settings.PeekWidth = v; Save(); NeedRestart(); }));
+            v => { _settings.PeekWidth = v; SaveAndApply(); }));
         p.Children.Add(SliderCard("展開寬度", "", 320, 600, 10, _settings.ExpandedWidth, "",
-            v => { _settings.ExpandedWidth = v; Save(); NeedRestart(); }));
+            v => { _settings.ExpandedWidth = v; SaveAndApply(); }));
         p.Children.Add(SliderCard("展開高度", "", 150, 320, 5, _settings.ExpandedHeight, "",
-            v => { _settings.ExpandedHeight = v; Save(); NeedRestart(); }));
+            v => { _settings.ExpandedHeight = v; SaveAndApply(); }));
 
         p.Children.Add(Section("進階"));
         p.Children.Add(ToggleCard("軟體算圖", "省記憶體(約少一半)。如果動畫不夠順可以關掉改用 GPU。重新啟動後套用。",
@@ -255,6 +257,67 @@ public partial class SettingsWindow : Window
     // ── 共用小工具 ─────────────────────────────────────
 
     private void Save() => _settings.Save();
+
+    private void SaveAndApply()
+    {
+        _settings.Save();
+        _main.ApplySettingsLive();
+    }
+
+    /// <summary>快捷鍵:點一下輸入框後直接按下想要的組合(至少一個 Ctrl / Alt / Shift / Win)。</summary>
+    private Border HotkeyCard()
+    {
+        var box = new TextBox
+        {
+            Text = string.IsNullOrEmpty(_settings.Hotkey) ? "(未設定)" : _settings.Hotkey,
+            IsReadOnly = true,
+            Width = 170,
+            TextAlignment = TextAlignment.Center,
+            Cursor = System.Windows.Input.Cursors.Hand,
+            Style = (Style)FindResource(IslandTheme.SettingsTextBox),
+        };
+        var status = new TextBlock { Style = (Style)FindResource(IslandTheme.SettingsCaptionText) };
+        box.GotKeyboardFocus += (_, _) => box.Text = "請按下組合鍵…";
+        box.LostKeyboardFocus += (_, _) => box.Text = string.IsNullOrEmpty(_settings.Hotkey) ? "(未設定)" : _settings.Hotkey;
+        box.PreviewKeyDown += (_, e) =>
+        {
+            e.Handled = true;
+            var key = e.Key == System.Windows.Input.Key.System ? e.SystemKey : e.Key;
+            var text = GlobalHotkey.Format(System.Windows.Input.Keyboard.Modifiers, key);
+            if (text is null) return;   // 還在按修飾鍵
+            var old = _settings.Hotkey;
+            _settings.Hotkey = text;
+            if (_main.ApplyHotkey())
+            {
+                Save();
+                status.Text = $"已設定為 {text}。";
+            }
+            else
+            {
+                _settings.Hotkey = old;
+                _main.ApplyHotkey();
+                status.Text = $"{text} 已經被其他程式使用,換一組試試。";
+            }
+            box.Text = _settings.Hotkey;
+            Keyboard.ClearFocus();
+        };
+        var clear = new Button { Content = "停用", Margin = new Thickness(8, 0, 0, 0), Style = (Style)FindResource(IslandTheme.SettingsButton) };
+        clear.Click += (_, _) =>
+        {
+            _settings.Hotkey = "";
+            _main.ApplyHotkey();
+            Save();
+            box.Text = "(未設定)";
+            status.Text = "快捷鍵已停用。";
+        };
+        var row = new StackPanel { Orientation = Orientation.Horizontal };
+        row.Children.Add(box);
+        row.Children.Add(clear);
+
+        var card = Card("快捷鍵", "叫出並固定展開島;展開時按 Esc 或再按一次收起。點輸入框後直接按下想要的組合。", row);
+        ((Panel)((Grid)card.Child).Children[0]).Children.Add(status);
+        return card;
+    }
 
     private void NeedRestart() => RestartBar.Visibility = Visibility.Visible;
 

@@ -49,6 +49,8 @@ public partial class MediaView : UserControl
         PrevButton.IsEnabled = s.CanPrevious;
         NextButton.IsEnabled = s.CanNext;
 
+        SeekArea.Cursor = s.CanSeek ? System.Windows.Input.Cursors.Hand : null;
+        SeekArea.ToolTip = s.CanSeek ? "點一下跳到這個位置" : null;
         UpdateProgress(s);
     }
 
@@ -106,6 +108,14 @@ public partial class MediaView : UserControl
     }
 
     private void OnMuteClick(object sender, RoutedEventArgs e) => UpdateVolumeLabel(_module.ToggleMute());
+
+    private void OnSeekClick(object sender, System.Windows.Input.MouseButtonEventArgs e)
+    {
+        if (!_module.Current.CanSeek || SeekArea.ActualWidth <= 0) return;
+        double fraction = Math.Clamp(e.GetPosition(SeekArea).X / SeekArea.ActualWidth, 0, 1);
+        _module.Seek(fraction);
+        e.Handled = true;
+    }
 
     private void OnPlayClick(object sender, RoutedEventArgs e) => _module.TogglePlayPause();
     private void OnNextClick(object sender, RoutedEventArgs e) => _module.Next();

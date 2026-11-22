@@ -17,9 +17,9 @@ public partial class MainWindow : Window, IShellController
 {
     // ── 尺寸與動畫(DIP;尺寸來自 settings.json) ─────────
     // 三段:閒置(隱藏,或只有時間的小膠囊)→ 滑鼠移過去「預覽」(一排字)→ 點擊「固定展開」
-    private readonly Size _collapsedSize;
-    private readonly Size _peekSize;
-    private readonly Size _expandedSize;
+    private Size _collapsedSize;
+    private Size _peekSize;
+    private Size _expandedSize;
     private const double ExpandedRadius = 24;
 
     private static readonly Duration PeekDuration = new(TimeSpan.FromMilliseconds(200));
@@ -33,8 +33,15 @@ public partial class MainWindow : Window, IShellController
 
     /// <summary>滑鼠離開後等多久才隱藏(避免在熱區與膠囊之間移動時閃爍)。</summary>
     private static readonly TimeSpan HideDelay = TimeSpan.FromMilliseconds(220);
-    /// <summary>熱區往下多蓋住膠囊上緣幾 DIP,讓滑鼠從熱區往下移時不會中斷。</summary>
-    private const double HotZoneOverlap = 4;
+    /// <summary>
+    /// 熱區高度(DIP):只有螢幕最上緣一條細線,滑鼠推到頂端一定碰得到,
+    /// 又幾乎不會擋到瀏覽器分頁等點擊。熱區到膠囊之間的縫由 IsCursorOverCapsule 的寬容範圍處理。
+    /// </summary>
+    private const double HotZoneHeight = 3;
+
+    private const int HotkeyId = 1;
+    private const int EscHotkeyId = 2;
+    private bool _escRegistered;
 
     private static readonly Brush DragHighlightBrush = Freeze(new SolidColorBrush(Color.FromArgb(0x66, 0xFF, 0xFF, 0xFF)));
 
@@ -72,27 +79,11 @@ public partial class MainWindow : Window, IShellController
         _modules = modules;
         InitializeComponent();
 
-        _collapsedSize = new Size(settings.CollapsedWidth, settings.CollapsedHeight);
-        _peekSize = new Size(settings.PeekWidth, settings.CollapsedHeight);
-        _expandedSize = new Size(settings.ExpandedWidth, settings.ExpandedHeight);
-
-        // 視窗貼齊螢幕頂端,膠囊往下 TopOffset;中間的縫由熱區補滿
-        IslandRow.Margin = new Thickness(0, settings.TopOffset, 0, 0);
         IslandRow.RenderTransform = _slide;   // 隱藏 / 出現:整列往上滑出螢幕、從上方滑下來
-        foreach (var circle in new[] { LeftCircle, RightCircle })
-        {
-            circle.Width = circle.Height = _collapsedSize.Height;
-            circle.CornerRadius = new CornerRadius(_collapsedSize.Height / 2);
-        }
-        HotZone.Width = _collapsedSize.Width;
-        HotZone.Height = settings.TopOffset + HotZoneOverlap;
-
+        ApplyLayout();
         Capsule.Width = _collapsedSize.Width;
         Capsule.Height = _collapsedSize.Height;
         Capsule.CornerRadius = new CornerRadius(_collapsedSize.Height / 2);
-        CollapsedLayer.Height = _collapsedSize.Height - 2;              // 扣掉 1px 邊框
-        ExpandedLayer.Width = _expandedSize.Width - 2;                  // 固定為展開尺寸,放大時像揭開
-        ExpandedLayer.Height = _expandedSize.Height - 2;
         // 視窗大小跟著狀態:平常只放得下一排 + 小圓,展開時才放大(見 UseBigWindow)
         _shrinkTimer = new DispatcherTimer(DispatcherPriority.Background) { Interval = TimeSpan.FromMilliseconds(450) };
         _shrinkTimer.Tick += OnShrinkTimerTick;
@@ -137,6 +128,7 @@ public partial class MainWindow : Window, IShellController
         _displays = new DisplayWatcher(Dispatcher, () => Reposition("螢幕變更"));
         Reposition("啟動");
 
+        ApplyHotkey();
         _fullscreen = new FullscreenWatcher(_hwnd, Dispatcher, () => _monitor, OnFullscreenChanged);
         _topmost.ForegroundChanged += () => { if (_settings.HideInFullscreen) _fullscreen.Schedule(); };
         Loaded += (_, _) => Reposition("載入完成");
@@ -156,6 +148,12 @@ public partial class MainWindow : Window, IShellController
                 // 點膠囊時不要把焦點從使用者正在打字的視窗搶走
                 handled = true;
                 return new IntPtr(MA_NOACTIVATE);
+
+            case GlobalHotkey.WM_HOTKEY:
+                if (wParam.ToInt32() == HotkeyId) OnHotkey();
+                else if (wParam.ToInt32() == EscHotkeyId && IsExpanded) CollapseExpanded(force: true);
+                handled = true;
+                break;
 
             case WM_DPICHANGED:
             case WM_DISPLAYCHANGE:
@@ -522,6 +520,11 @@ public partial class MainWindow : Window, IShellController
     /// <summary>離開 Expanded 時的共同收尾(由 ShowSurface / HideSurface 呼叫)。</summary>
     private void LeaveExpanded()
     {
+        if (_escRegistered)
+        {
+            GlobalHotkey.Unregister(_hwnd, EscHotkeyId);
+            _escRegistered = false;
+        }
         _pinned = false;
         _outsideClick.Stop();
         _leaveTimer.Stop();
@@ -603,14 +606,64 @@ public partial class MainWindow : Window, IShellController
     private double BigWindowWidth => Math.Max(CompactWindowWidth, _expandedSize.Width * 1.08 + 24);
     private double BigWindowHeight => _settings.TopOffset + _expandedSize.Height * 1.08 + 24;
 
-    private void UseBigWindow(bool big)
+    private void UseBigWindow(bool big, bool force = false)
     {
         _shrinkTimer.Stop();
-        if (_bigWindow == big) return;
+        if (_bigWindow == big && !force) return;
         _bigWindow = big;
         Width = big ? BigWindowWidth : CompactWindowWidth;
         Height = big ? BigWindowHeight : CompactWindowHeight;
         Reposition(null);
+    }
+
+    /// <summary>依設定套用各部位的尺寸(啟動時,以及設定視窗改了尺寸時)。</summary>
+    private void ApplyLayout()
+    {
+        _collapsedSize = new Size(_settings.CollapsedWidth, _settings.CollapsedHeight);
+        _peekSize = new Size(_settings.PeekWidth, _settings.CollapsedHeight);
+        _expandedSize = new Size(_settings.ExpandedWidth, _settings.ExpandedHeight);
+
+        // 視窗貼齊螢幕頂端,膠囊往下 TopOffset
+        IslandRow.Margin = new Thickness(0, _settings.TopOffset, 0, 0);
+        foreach (var circle in new[] { LeftCircle, RightCircle })
+        {
+            circle.Width = circle.Height = _collapsedSize.Height;
+            circle.CornerRadius = new CornerRadius(_collapsedSize.Height / 2);
+        }
+        HotZone.Width = _collapsedSize.Width;
+        HotZone.Height = HotZoneHeight;
+        CollapsedLayer.Height = _collapsedSize.Height - 2;              // 扣掉 1px 邊框
+        ExpandedLayer.Width = _expandedSize.Width - 2;                  // 固定為展開尺寸,放大時像揭開
+        ExpandedLayer.Height = _expandedSize.Height - 2;
+    }
+
+    // ── 快捷鍵 ──────────────────────────────────────────
+
+    /// <summary>註冊設定裡的快捷鍵;回傳是否成功(失敗通常是被其他程式佔用)。</summary>
+    internal bool ApplyHotkey()
+    {
+        if (_hwnd == IntPtr.Zero) return false;
+        if (string.IsNullOrWhiteSpace(_settings.Hotkey))
+        {
+            GlobalHotkey.Unregister(_hwnd, HotkeyId);
+            return true;
+        }
+        bool ok = GlobalHotkey.Register(_hwnd, HotkeyId, _settings.Hotkey);
+        Log.Write(ok ? $"快捷鍵:{_settings.Hotkey}" : $"快捷鍵 {_settings.Hotkey} 註冊失敗(格式不對或已被其他程式使用)");
+        return ok;
+    }
+
+    /// <summary>快捷鍵:收著 → 固定展開(Esc 或再按一次收起);展開中 → 收起。</summary>
+    private void OnHotkey()
+    {
+        if (!IsVisible) return;   // 全螢幕隱藏中
+        if (IsExpanded)
+        {
+            CollapseExpanded(force: true);
+            return;
+        }
+        ToExpanded(CurrentActivity, pin: true);
+        if (IsExpanded) _escRegistered = GlobalHotkey.RegisterKey(_hwnd, EscHotkeyId, Key.Escape);
     }
 
     /// <summary>收起動畫結束後再縮小視窗(動畫進行中縮小會把面板切掉)。</summary>
@@ -1104,6 +1157,17 @@ public partial class MainWindow : Window, IShellController
     /// <summary>設定視窗改了可以立即套用的項目(閒置隱藏、全螢幕隱藏、螢幕)後呼叫。</summary>
     internal void ApplySettingsLive()
     {
+        _settings.Normalize();
+        ApplyLayout();
+        Capsule.CornerRadius = new CornerRadius(IsExpanded ? ExpandedRadius : _collapsedSize.Height / 2);
+        if (_surface != Surface.Hidden || _leaving)
+            SetSize(_surface switch
+            {
+                Surface.Expanded => _expandedSize,
+                Surface.Peek or Surface.Announce => _peekSize,
+                _ => _collapsedSize,
+            });
+        UseBigWindow(_bigWindow, force: true);
         ApplyIdleMode();
         if (_settings.HideInFullscreen) _fullscreen?.Evaluate();
         else if (!IsVisible) OnFullscreenChanged(false);
