@@ -1,0 +1,110 @@
+<UserControl x:Class="Island.Modules.Shelf.ShelfView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             PreviewMouseMove="OnPreviewMouseMove"
+             PreviewMouseLeftButtonUp="OnPreviewMouseUp">
+
+    <UserControl.Resources>
+        <SolidColorBrush x:Key="Secondary" Color="#9A9A9A" />
+        <SolidColorBrush x:Key="TileHover" Color="#1F1F1F" />
+
+        <Style x:Key="TextButton" TargetType="Button">
+            <Setter Property="Foreground" Value="{StaticResource Secondary}" />
+            <Setter Property="FontSize" Value="11.5" />
+            <Setter Property="Focusable" Value="False" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Bg" CornerRadius="8" Padding="8,2" Background="Transparent">
+                            <ContentPresenter />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bg" Property="Background" Value="#262626" />
+                                <Setter Property="Foreground" Value="White" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="Tile" TargetType="Border">
+            <Setter Property="Background" Value="Transparent" />
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="{StaticResource TileHover}" />
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+    </UserControl.Resources>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <!-- 標題列:數量(拖曳這裡 = 全部拖出) | 清除 -->
+        <DockPanel x:Name="Header" Grid.Row="0" Margin="2,0,0,4" LastChildFill="False">
+            <Border x:Name="DragAllHandle" DockPanel.Dock="Left" Background="Transparent" CornerRadius="8"
+                    Padding="6,2" Cursor="Hand" Style="{StaticResource Tile}"
+                    ToolTip="拖曳這裡可一次拖出全部項目"
+                    MouseLeftButtonDown="OnDragAllMouseDown">
+                <StackPanel Orientation="Horizontal">
+                    <TextBlock Text="&#xE76F;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="11"
+                               Foreground="{StaticResource Secondary}" VerticalAlignment="Center" Margin="0,0,5,0" />
+                    <TextBlock x:Name="CountText" FontSize="11.5" Foreground="{StaticResource Secondary}"
+                               VerticalAlignment="Center" />
+                </StackPanel>
+            </Border>
+            <Button DockPanel.Dock="Right" Content="全部清除" Style="{StaticResource TextButton}"
+                    Click="OnClearClick" VerticalAlignment="Center" />
+        </DockPanel>
+
+        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Hidden" HorizontalScrollBarVisibility="Disabled"
+                      Focusable="False">
+            <ItemsControl x:Name="ItemsList" Focusable="False">
+                <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <WrapPanel Orientation="Horizontal" />
+                    </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                        <Border Width="80" Height="74" Margin="1" CornerRadius="10" Padding="4,6,4,4"
+                                Style="{StaticResource Tile}"
+                                ToolTip="{Binding Path}"
+                                MouseLeftButtonDown="OnTileMouseDown">
+                            <Border.ContextMenu>
+                                <ContextMenu>
+                                    <MenuItem Header="開啟" Click="OnOpenClick" />
+                                    <MenuItem Header="在檔案總管中顯示" Click="OnRevealClick" />
+                                    <Separator />
+                                    <MenuItem Header="從 Shelf 移除" Click="OnRemoveClick" />
+                                </ContextMenu>
+                            </Border.ContextMenu>
+                            <StackPanel>
+                                <Image Source="{Binding Icon}" Width="32" Height="32"
+                                       RenderOptions.BitmapScalingMode="HighQuality" />
+                                <TextBlock Text="{Binding Name}" FontSize="11" Foreground="White"
+                                           TextAlignment="Center" TextWrapping="Wrap" TextTrimming="CharacterEllipsis"
+                                           MaxHeight="30" Margin="0,4,0,0" />
+                            </StackPanel>
+                        </Border>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </ScrollViewer>
+
+        <!-- 空的時候 -->
+        <StackPanel x:Name="EmptyState" Grid.Row="0" Grid.RowSpan="2"
+                    HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0,0,0,10">
+            <TextBlock Text="&#xE896;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="22"
+                       Foreground="{StaticResource Secondary}" HorizontalAlignment="Center" />
+            <TextBlock Text="把檔案拖到這裡暫放" FontSize="12.5" Foreground="{StaticResource Secondary}"
+                       HorizontalAlignment="Center" Margin="0,8,0,0" />
+        </StackPanel>
+    </Grid>
+</UserControl>

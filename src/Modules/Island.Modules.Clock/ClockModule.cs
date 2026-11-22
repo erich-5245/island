@@ -59,7 +59,14 @@ public sealed class ClockModule : IslandModuleBase
         _expandedTime = new TextBlock { FontSize = 40, FontWeight = FontWeights.SemiBold, Foreground = Brushes.White };
         Typography.SetNumeralAlignment(_expandedTime, FontNumeralAlignment.Tabular);
         _expandedDate = new TextBlock { FontSize = 13, Foreground = new SolidColorBrush(Color.FromRgb(0x9A, 0x9A, 0x9A)) };
-        var panel = new StackPanel { HorizontalAlignment = HorizontalAlignment.Center };
+        _expandedTime.HorizontalAlignment = HorizontalAlignment.Center;
+        _expandedDate.HorizontalAlignment = HorizontalAlignment.Center;
+        var panel = new StackPanel
+        {
+            HorizontalAlignment = HorizontalAlignment.Center,
+            VerticalAlignment = VerticalAlignment.Center,
+            Margin = new Thickness(0, 0, 0, 12),
+        };
         panel.Children.Add(_expandedTime);
         panel.Children.Add(_expandedDate);
         UpdateText(DateTime.Now);
