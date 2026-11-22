@@ -1,7 +1,26 @@
 # Island — Windows 動態島
 
 獨立的 Windows 動態島程式(目標:取代 NUSA)。C# + WPF,.NET 10 LTS。
-目前是 **第 1 階段**:外殼 + 時間膠囊 + 模組架構。
+
+- **第 1 階段(完成)**:外殼、時間膠囊、模組架構
+- **第 2 階段(完成)**:hover 效果、展開/收合、模組分頁、拖放、Shelf
+
+## 操作方式
+
+| 動作 | 結果 |
+|---|---|
+| 滑鼠移到膠囊上 | 膠囊稍微放大(200×36 → 210×38) |
+| 左鍵點膠囊 | 展開成 440×230,上方有模組分頁(時間/Shelf) |
+| 滑鼠離開展開的島約 0.7 秒 | 自動收合 |
+| 把檔案拖到膠囊上 | 自動展開並切到 Shelf,邊框亮起;放開即加入 |
+| Shelf:拖曳某個檔案 | 拖到其他程式。行為和從檔案總管拖曳一樣:同一個磁碟預設是移動,不同磁碟是複製,可按 Ctrl/Shift 切換。檔案被移走後會自動從 Shelf 移除。 |
+| Shelf:拖曳左上角「≡ N 個項目」 | 一次拖出全部 |
+| Shelf:雙擊檔案 | 用預設程式開啟 |
+| Shelf:右鍵檔案 | 開啟/在檔案總管中顯示/從 Shelf 移除 |
+| Shelf:「全部清除」 | 清空清單(不會刪除檔案) |
+| 右鍵膠囊 | 結束 |
+
+Shelf 只記住檔案**路徑**,不會複製檔案。清單存在 `%LOCALAPPDATA%\Island\modules\shelf\shelf.json`,重新啟動後保留;已經不存在的檔案會在展開時自動移除。收合時膠囊右側顯示「Shelf N」。
 
 ## 需求
 
@@ -71,12 +90,18 @@ src/
   Island.Core/                   模組合約(外殼和模組都引用它)
     IIslandModule.cs             Id、Title、Initialize、CreateCollapsedView、CreateExpandedView、Badge、BadgeChanged
     IslandBadge.cs               收合時右側的小提示(文字 + 選用圖示)
-    IIslandHost.cs               外殼提供給模組的服務
+    IIslandHost.cs               外殼提供給模組的服務(Dispatcher、資料夾、log、Expand/Collapse/HoldExpanded)
+    IIslandDropTarget.cs         選用:接收拖到膠囊上的東西(CanAccept / Accept)
+    IIslandExpandAware.cs        選用:展開畫面顯示/隱藏時收到通知
     IslandModuleBase.cs          模組基底類別(SetBadge 會自動通知外殼)
   Modules/
     Directory.Build.props        所有模組自動引用 Island.Core
-    Island.Modules.Clock/        時間模組:對齊整分鐘的單次計時器
-    Island.Modules.Shelf/        空殼(第 2 階段實作)
+    Island.Modules.Clock/        時間模組:對齊整分鐘的單次計時器;展開畫面顯示大時間 + 日期
+    Island.Modules.Shelf/
+      ShelfModule.cs             清單、拖入/拖出、保存、Badge
+      ShelfView.xaml(.cs)        展開畫面:圖示格狀清單、標題列、空白提示
+      ShelfItem.cs               一個項目(路徑、名稱、圖示)
+      ShellIcons.cs              SHGetFileInfo 取得檔案總管圖示
 ```
 
 ### 模組如何被載入
@@ -121,6 +146,13 @@ public sealed class XxxModule : IslandModuleBase
 
 模組呼叫 `SetBadge(...)` 時會觸發 `BadgeChanged`,外殼收到後重新產生右側的 Badge 列。
 
+### 展開與模組分頁
+
+- 第一次展開時,外殼對每個模組呼叫 `CreateExpandedView()`,回傳非 null 的模組各得到一個分頁(分頁名稱 = `Title`)。只有一個模組時不顯示分頁。
+- 點膠囊時展開到上次看的分頁。拖曳時展開到第一個 `CanAccept` 回傳 true 的模組。
+- 模組可以呼叫 `Host.Expand("id")` / `Host.Collapse()`。執行長時間互動(例如拖出檔案)時,用 `using (Host.HoldExpanded()) { … }` 防止島自動收合。
+- 自動收合的判斷:**只在展開期間**每 350 ms 用 `GetCursorPos` 確認游標是否還在島上;收合後計時器停止,閒置時沒有任何計時器在跑。
+
 ## 視窗行為的實作方式
 
 | 需求 | 做法 |
@@ -134,6 +166,17 @@ public sealed class XxxModule : IslandModuleBase
 | 螢幕熱插拔 | `WM_DISPLAYCHANGE`、`WM_DPICHANGED`、`SystemEvents.DisplaySettingsChanged`、睡眠喚醒 → 400 ms 去抖動後定位,1.5 秒後再確認一次。拔掉外接螢幕時 Windows 會把筆電螢幕改成主螢幕,`"primary"` 模式自然會跟過去。 |
 
 ## 效能量測(2026-11-22,Release 建置,16 執行緒 CPU,1920×1080 @100%)
+
+### 第 2 階段(收合狀態閒置 60 秒)
+
+| 情況 | CPU | 工作管理員「記憶體」 | Private Bytes | Working Set | 執行緒 |
+|---|---|---|---|---|---|
+| 剛啟動、還沒展開過 | 31 ms / 60 s ≈ 0.05% 單核 | **20.6 MB** | 44.7 MB | 89.2 MB | 9 |
+| 展開過、拖入拖出過檔案後 | 63 ms / 60 s ≈ 0.1% 單核 | **44.6 MB** | 71.7 MB | 154.1 MB | 12 |
+
+用過拖放後記憶體增加,主要是 Windows 殼層與 OLE 拖放元件(檔案圖示、拖曳影像、殼層擴充)載入到行程內,以及建立過的展開畫面。這些元件載入後會留在行程內,不會持續成長。工作管理員顯示的記憶體仍在 80 MB 目標以下。
+
+### 第 1 階段
 
 閒置(只有時間膠囊),啟動後等待穩定再量測:
 
@@ -159,7 +202,19 @@ dotnet tool install -g dotnet-counters
 dotnet-counters monitor -n Island --counters System.Runtime
 ```
 
-## 驗收清單
+## 第 2 階段驗收(自動化測試,模擬真實滑鼠與 OLE 拖放)
+
+| 項目 | 結果 |
+|---|---|
+| 點膠囊展開,前景視窗不變 | ✅ |
+| 分頁顯示「時間 / Shelf」,時間頁顯示大時間 + 日期 | ✅ |
+| 滑鼠離開後自動收合 | ✅ |
+| 從另一個程式拖檔案到膠囊:自動展開到 Shelf、邊框亮起、放開後加入、寫入 shelf.json | ✅ |
+| 從 Shelf 拖檔案到另一個程式:對方收到正確路徑,複製時原檔與清單都保留 | ✅ |
+| 收合後顯示「Shelf 1」 | ✅ |
+| 拖出時選「移動」,項目自動從清單移除 | ⏳ 尚未實測(請拖到同一顆磁碟的資料夾試試) |
+
+## 第 1 階段驗收清單
 
 | # | 項目 | 狀態 |
 |---|---|---|
@@ -187,18 +242,10 @@ dotnet-counters monitor -n Island --counters System.Runtime
 - 右鍵選單開啟時,選單本身可能短暫取得焦點(這是 WPF ContextMenu 的行為),關閉後就不會影響。
 - 開機自動啟動尚未實作(可以先手動把捷徑放進 `shell:startup`)。
 
-## 第 2 階段:Shelf(接下來要做)
+## 之後可以做的(第 3 階段候選)
 
-1. **拖放接收**:膠囊/視窗加上 `AllowDrop`。拖曳物件進入膠囊時,外殼自動展開(在 640×320 預留的區域內)並顯示 Shelf 的放置區。
-2. **展開/收合機制(外殼)**:
-   - 外殼加上 `Collapsed` / `Expanded` 狀態,用 `CreateExpandedView()` 取得模組畫面。
-   - 膠囊尺寸用動畫變化(只在動畫期間算圖,結束後回到閒置)。
-   - 展開時視窗暫時可以接收滑鼠(拖放需要),收合後恢復點穿。
-   - 多個模組時加上切換機制(例如展開畫面上方的分頁或圓點)。
-3. **Shelf 模組**:
-   - 保存檔案「參照」(路徑),選擇性地複製到 `%LOCALAPPDATA%\Island\modules\shelf\`。
-   - 展開畫面列出檔案(圖示 + 名稱),可以拖出到其他程式(`DragDrop.DoDragDrop` + `DataFormats.FileDrop`)、移除單筆、全部清除。
-   - 數量改變時 `SetBadge(new IslandBadge($"Shelf {n}"))`,膠囊右側自動顯示。
-   - 重新啟動後保留清單(JSON)。
-4. **拖放的權限**:Island 維持 `asInvoker`,確保一般權限的檔案總管可以拖進來(UIPI 會擋低權限 → 高權限)。
-5. **效能維持**:閒置時不能有計時器或動畫;用 dotnet-counters 再量一次並更新上表。
+1. **全螢幕時自動隱藏**:偵測前景視窗是否為全螢幕(遊戲、影片),是的話隱藏膠囊。可以沿用 `EVENT_SYSTEM_FOREGROUND` 事件,不需要輪詢。
+2. **開機自動啟動**:寫入 `HKCU\Software\Microsoft\Windows\CurrentVersion\Run`,不需要系統管理員權限。可做成右鍵選單的開關。
+3. **媒體模組**:用 `GlobalSystemMediaTransportControlsSessionManager` 顯示正在播放的歌曲,提供播放/暫停/上一首/下一首;收合時左側顯示小圖示。
+4. **Shelf 進階**:拖入文字/網址/圖片(目前只接收檔案)、多選、較大的縮圖(`IShellItemImageFactory`)、選擇性複製到 Shelf 資料夾。
+5. **設定畫面**:在右鍵選單加「設定」,選螢幕、開關模組,不用手動改 JSON。
