@@ -53,7 +53,7 @@ internal sealed class IslandSettings
     public bool SoftwareRendering { get; set; } = true;
 
     /// <summary>模組排列順序。沒列出但有找到的模組會排在後面。</summary>
-    public List<string> Modules { get; set; } = ["clock", "timer", "media", "shelf", "osd"];
+    public List<string> Modules { get; set; } = ["clock", "weather", "timer", "media", "shelf", "osd"];
 
     /// <summary>要停用的模組 Id。</summary>
     public List<string> DisabledModules { get; set; } = [];

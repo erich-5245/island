@@ -1,0 +1,47 @@
+<UserControl x:Class="Island.Modules.Weather.WeatherView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <UserControl.Resources>
+        <SolidColorBrush x:Key="Secondary" Color="#9A9A9A" />
+        <FontFamily x:Key="SymbolFont">Segoe UI Symbol</FontFamily>
+    </UserControl.Resources>
+
+    <Grid Margin="2,0,2,0">
+        <Grid x:Name="Body">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="*" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+
+            <!-- 現在 -->
+            <StackPanel VerticalAlignment="Center" Margin="0,0,16,0">
+                <StackPanel Orientation="Horizontal">
+                    <TextBlock x:Name="NowSymbol" FontFamily="{StaticResource SymbolFont}" FontSize="26"
+                               Foreground="{DynamicResource Island.AccentSoft}" VerticalAlignment="Center" Margin="0,0,8,0" />
+                    <TextBlock x:Name="NowTemp" FontSize="34" FontWeight="SemiBold" Foreground="White"
+                               VerticalAlignment="Center" />
+                </StackPanel>
+                <TextBlock x:Name="NowDesc" FontSize="12" Foreground="White" Margin="2,0,0,0" />
+                <TextBlock x:Name="TodayText" FontSize="11" Foreground="{DynamicResource Island.AccentMuted}" Margin="2,2,0,0" />
+            </StackPanel>
+
+            <!-- 接下來 6 小時 -->
+            <UniformGrid x:Name="HoursGrid" Grid.Column="1" Rows="1" VerticalAlignment="Center" />
+
+            <TextBlock x:Name="FooterText" Grid.Row="1" Grid.ColumnSpan="2" FontSize="10.5"
+                       Foreground="#6E6E6E" Margin="2,4,0,0" />
+        </Grid>
+
+        <StackPanel x:Name="EmptyState" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0,0,0,6">
+            <TextBlock Text="&#x2601;" FontFamily="{StaticResource SymbolFont}" FontSize="20"
+                       Foreground="{StaticResource Secondary}" HorizontalAlignment="Center" />
+            <TextBlock x:Name="EmptyText" Text="正在取得天氣…" FontSize="12" Foreground="{StaticResource Secondary}"
+                       HorizontalAlignment="Center" Margin="0,6,0,0" />
+        </StackPanel>
+    </Grid>
+</UserControl>

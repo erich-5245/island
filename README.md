@@ -12,7 +12,8 @@
 | 平常(閒置) | **完全隱藏**。螢幕最上緣中間留一條看不見的熱區(寬同收合膠囊、高 = topOffset + 4 DIP)。右鍵「閒置時隱藏」取消勾選 → 改成平常顯示只有時間的小膠囊。 |
 | 滑鼠推到螢幕上緣中間 / 移到膠囊上 | 出現「一排字」(320 寬)。**正在播放時**顯示封面 + 歌名 · 歌手;沒有播放時顯示左邊日期、中間時間、右邊 Shelf 數量。滑鼠離開約 0.2 秒後再隱藏。 |
 | 正在播放音樂/影片時 | 平常一樣隱藏。**換歌時**膠囊出現約 3 秒(封面 + 歌名 · 歌手)再自動隱藏;暫停/繼續不會出現。右鍵「切歌時顯示」可關掉。 |
-| 左鍵點一下 | **固定展開**成 380×170,上方有模組分頁(時間/計時/播放/Shelf)。正在播放時直接打開「播放」分頁。滑鼠移開也不會收。 |
+| 左鍵點一下 | **固定展開**成 380×170,上方有模組分頁(時間/天氣/計時/播放/Shelf)。正在播放時直接打開「播放」分頁。滑鼠移開也不會收。 |
+| 天氣 | 沒有音樂/計時時,滑鼠移過去那一排右側顯示「☀ 24°」(晚上是月亮)。**天氣分頁**:現在溫度、狀況、體感、今日高低溫與降雨機率、接下來 6 小時(降雨機率 ≥ 20% 時顯示)。**30 分鐘內可能下雨**(而現在沒下)時膠囊出現「☂ 30 分鐘內可能下雨 · 記得帶傘」約 5 秒,同一場雨只提醒一次。資料來源 Open-Meteo(免費、不需金鑰),每 15 分鐘更新。 |
 | 計時分頁 | **計時器**:選 1/3/5/10/15/30/60 分(或在大時間上滾輪 ±1 分,執行中也能加減)→ 開始/暫停/重設。**番茄鐘**:專注 25 分 → 自動開始休息 5 分(每 4 輪休息 15 分)→ 休息結束提醒,按開始進入下一輪;可跳過這一段,4 個圓點顯示這組完成幾輪。 |
 | 計時中 | 膠囊照常隱藏;滑鼠移到上緣顯示「碼錶 剩餘時間 狀態」(計時優先於音樂)。**時間到**時膠囊跳出「時間到」約 6 秒並播放提示音(Windows Notify Calendar),之後 30 秒內滑鼠移過去仍會看到,點一下打開計時分頁。 |
 | 按音量鍵 / 調亮度 | 膠囊從上緣出現約 1.5 秒:**喇叭(或太陽)圖示 + 長條 + 數字**,連按會延長、長條即時跟著動;靜音顯示「靜音」。音量是任何方式改變系統音量都會顯示(鍵盤、工作列、其他程式);亮度只支援由 Windows 控制亮度的螢幕(筆電內建螢幕),外接螢幕用自己按鈕調的亮度 Windows 不知道。滑鼠停在島上時也會短暫換成提示。右鍵「音量亮度提示」可關掉。Windows 內建的提示框目前**無法隱藏**(這個 Windows 11 版本的提示框不是獨立視窗,沒有穩定的方法)。 |
@@ -77,7 +78,7 @@ dotnet publish src\Island.App -c Release -r win-x64 --self-contained false -o pu
   "softwareRendering": true,
   "announceActivity": true,
   "showOsd": true,
-  "modules": ["clock", "timer", "media", "shelf", "osd"],
+  "modules": ["clock", "weather", "timer", "media", "shelf", "osd"],
   "disabledModules": []
 }
 ```
@@ -96,6 +97,8 @@ dotnet publish src\Island.App -c Release -r win-x64 --self-contained false -o pu
 | `softwareRendering` | `true` = 軟體算圖,不建立 Direct3D 裝置,記憶體約省一半(見下方數據)。之後展開動畫若不順可改成 `false`。 |
 | `modules` | 模組順序。第一個有收合畫面的模組放在膠囊中央;沒列出但有找到的模組會排在後面。 |
 | `disabledModules` | 要停用的模組 Id。 |
+
+**天氣位置**存在 `%LOCALAPPDATA%\Island\modules\weather\location.json`(預設新竹市東區 24.80, 120.99),改地名與經緯度後重新啟動 Island。只會把經緯度送給 Open-Meteo。
 
 修改設定後需要重新啟動 Island。log 檔在 `%LOCALAPPDATA%\Island\island.log`,只在事件發生時寫入。
 
@@ -135,6 +138,11 @@ src/
       TimerModule.cs             計時器 / 番茄鐘狀態機(以結束時刻計算剩餘,睡眠喚醒不累積誤差)
       TimerView.xaml(.cs)        計時分頁:模式、大時間 + 進度、開始/重設/跳過、預設時間或輪數
       TimerActivityView.cs       計時中的一排(預覽、時間到提示)
+    Island.Modules.Weather/
+      WeatherModule.cs           抓取(HttpClient)、小提示、下雨提醒、睡眠喚醒後重抓
+      WeatherData.cs             解析 Open-Meteo JSON、WMO 天氣代碼 → 文字 / 單色符號(Segoe UI Symbol)
+      WeatherView.xaml(.cs)      天氣分頁
+      WeatherAlertView.cs        下雨提醒的一排
     Island.Modules.Osd/
       OsdModule.cs               音量 / 亮度提示(沒有展開畫面,只用 Announce)
       OsdView.cs                 圖示 + 長條 + 數字
@@ -216,6 +224,7 @@ public sealed class XxxModule : IslandModuleBase
 | 閒置隱藏 + 熱區 | 視窗貼齊螢幕頂端,膠囊用 Margin 往下 `topOffset`。閒置時膠囊 Opacity = 0(像素 alpha 0,系統直接讓滑鼠穿透);熱區是 alpha 1/255 的細條,看不見但收得到滑鼠與拖放。熱區與膠囊包在同一個 Grid 裡,滑鼠進出只看這個 Grid。 |
 | 點外面收合 | 不取得焦點的視窗收不到失焦事件,所以只在「固定展開」期間掛 `WH_MOUSE_LL`,收合時立刻卸下。掛勾裡只用 `WindowFromPoint` 判斷點到的視窗是不是本程式(膠囊、右鍵選單都算裡面),收合排到 UI 執行緒稍後執行。 |
 | 正在播放 | `GlobalSystemMediaTransportControlsSessionManager`,和 Windows 音量提示框的媒體卡片是同一套,所以有接系統媒體控制的程式都支援。訂閱所有工作階段的播放狀態/歌曲資訊事件,優先顯示「正在播放」的那個;事件 60 ms 去抖動後才重新讀取。瀏覽器播放時約每 4～5 秒送一次時間軸更新,收合時直接忽略,展開時才讀;進度條只在展開於播放分頁且正在播放時每秒更新。封面以 160 px 解碼並凍結。換歌判斷:來源 + 標題 + 歌手改變且正在播放 → `IIslandHost.Announce(3 秒)`,啟動時讀到的第一首不算。音量只在展開時開啟 Core Audio 端點並註冊通知(每次重新取得預設裝置),收合即釋放;自己設定時帶固定的 event context GUID,收到通知時用它忽略自己造成的變更。 |
+| 天氣 | 每 15 分鐘一次 HTTP 請求(失敗 5 分鐘後重試;睡眠喚醒 10 秒後重抓;展開時資料超過 10 分鐘也重抓)。下雨判斷用 `minutely_15` 降水量:接下來兩格(30 分鐘)有 ≥ 0.1 mm 且現在沒下雨 → `Announce`。符號用 Segoe UI Symbol 的單色字元(WPF 不支援彩色 emoji)。 |
 | 音量 / 亮度提示 | 全部事件驅動:Core Audio 音量通知、預設裝置切換通知、WMI 亮度事件。音量與靜音都沒變的通知(聲道平衡等)忽略。`Announce` 在滑鼠停在島上(預覽)時也有效:內容暫時換成提示,時間到換回預覽。 |
 | 計時器 | 只在執行中有 1 秒的 DispatcherTimer。每秒只更新「看得到」的畫面:膠囊完全淡出後外殼把它設為 Hidden(WPF 不再算圖),模組用 `IsVisible` 判斷,畫面重新出現時(IsVisibleChanged)補更新。時間到用 `IIslandHost.Announce`。 |
 | 強調色 | 主題筆刷放在 Application.Resources,所有用到的地方是 DynamicResource。放進資源字典的筆刷會被 WPF 凍結、不能做 ColorAnimation,所以換色時用計時器分 12 步、每步放一支新的凍結筆刷(只在換歌時跑)。模組透過 `IIslandHost.SetAccent(Color?)` 設定。 |
@@ -342,6 +351,15 @@ dotnet-counters monitor -n Island --counters System.Runtime
 |---|---|---|
 | 計時中、膠囊隱藏(只更新看得到的畫面) | **63 ms / 60 s** | 46.0 MB |
 | 計時中、膠囊隱藏(第一版:隱藏時也每秒更新) | 281 ms / 60 s | 43.7 MB |
+
+## 天氣驗收(實機)
+
+| 項目 | 結果 |
+|---|---|
+| 抓取 | ✅ 新竹市東區:16°、晴、體感 16°、14–25°、降雨 10%,接下來 6 小時 |
+| 一排字的小提示(暫停音樂時) | ✅「11/23 週一 · 01:44 · ☾ 16°」 |
+| 下雨提醒 | 未實測(要等到真的快下雨) |
+| 閒置 60 秒(連網抓完、執行緒池收回後) | 16 ms CPU、34.4 MB、18 執行緒(剛抓完那一分鐘約 190 ms、26 執行緒) |
 
 ## 音量 / 亮度提示驗收(實機)
 
