@@ -1,0 +1,7 @@
+<Project>
+  <!-- 所有模組共用:引用 Island.Core -->
+  <Import Project="$([MSBuild]::GetPathOfFileAbove('Directory.Build.props', '$(MSBuildThisFileDirectory)..'))" />
+  <ItemGroup>
+    <ProjectReference Include="$(MSBuildThisFileDirectory)..\Island.Core\Island.Core.csproj" />
+  </ItemGroup>
+</Project>

@@ -1,0 +1,26 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <AssemblyName>Island</AssemblyName>
+    <RootNamespace>Island.App</RootNamespace>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+
+    <!-- 效能:閒置程式不需要背景 GC 執行緒;Workstation GC 記憶體較省 -->
+    <ServerGarbageCollection>false</ServerGarbageCollection>
+    <ConcurrentGarbageCollection>false</ConcurrentGarbageCollection>
+    <TieredPGO>true</TieredPGO>
+    <UseSystemResourceKeys>true</UseSystemResourceKeys>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Island.Core\Island.Core.csproj" />
+    <!--
+      模組用萬用字元引用:只負責「建置並複製 dll 到輸出目錄」。
+      外殼程式碼不直接使用任何模組型別,而是在執行時掃描 Island.Modules.*.dll。
+      新增模組 = 在 src/Modules 下新增一個專案資料夾,這裡不用改。
+    -->
+    <ProjectReference Include="..\Modules\*\*.csproj" />
+  </ItemGroup>
+
+</Project>
