@@ -82,6 +82,7 @@ public partial class MainWindow : Window, IShellController
 
         // 視窗貼齊螢幕頂端,膠囊往下 TopOffset;中間的縫由熱區補滿
         IslandRow.Margin = new Thickness(0, settings.TopOffset, 0, 0);
+        IslandRow.RenderTransform = _slide;   // 隱藏 / 出現:整列往上滑出螢幕、從上方滑下來
         foreach (var circle in new[] { LeftCircle, RightCircle })
         {
             circle.Width = circle.Height = _collapsedSize.Height;
@@ -394,6 +395,11 @@ public partial class MainWindow : Window, IShellController
         if (_expanded) return;
 
         _expanded = true;
+        if (_slidingOut)
+        {
+            _slidingOut = false;
+            _slide.BeginAnimation(TranslateTransform.YProperty, new DoubleAnimation(0, SlideInDuration));
+        }
         ApplyCapsuleChrome();
         UpdateCircles();
         _peeking = false;
@@ -419,32 +425,128 @@ public partial class MainWindow : Window, IShellController
         _outsideClick.Stop();
         _leaveTimer.Stop();
         _dragInside = false;
-        ApplyCapsuleChrome();
-        Capsule.CornerRadius = new CornerRadius(_collapsedSize.Height / 2);
 
-        // 滑鼠還在島上 → 回到「預覽」一排字;否則回到收合
+        // 滑鼠還在島上 → 回到「預覽」一排字;否則直接整個往上滑出螢幕
         bool peek = IsCursorOverCapsule();
         _peeking = peek;
-        AnimateSize(peek ? _peekSize : _collapsedSize, CollapseDuration,
-            new QuarticEase { EasingMode = EasingMode.EaseOut });
-        bool hide = !peek && !IdleVisible;
+        if (!peek && !IdleVisible)
+        {
+            // 面板維持原樣往上滑走,看不見之後才重設成收合狀態(不做「縮小」的動畫)
+            CloseMenus();
+            SlideOut();
+        }
+        else
+        {
+            ShrinkPanel(peek ? _peekSize : _collapsedSize);
+        }
+        NotifyExpand(_active, false);
+    }
+
+    /// <summary>展開面板縮回一排(或收合膠囊),島仍然看得到時使用。</summary>
+    private void ShrinkPanel(Size to)
+    {
+        ApplyCapsuleChrome();
+        Capsule.CornerRadius = new CornerRadius(_collapsedSize.Height / 2);
+        AnimateSize(to, CollapseDuration, new QuarticEase { EasingMode = EasingMode.EaseOut });
         Fade(ExpandedLayer, 0, TimeSpan.FromMilliseconds(110), completed: () =>
         {
             if (!_expanded) ExpandedLayer.Visibility = Visibility.Collapsed;
         });
-        if (hide)
+        UpdateCollapsedLayers();
+        Fade(CollapsedLayer, 1, TimeSpan.FromMilliseconds(160), TimeSpan.FromMilliseconds(110));
+    }
+
+    // ── 滑出 / 滑入 ──────────────────────────────────────
+    // 隱藏時整列(小圓 + 膠囊/面板)維持原本的樣子往上滑出螢幕,完全看不見後才重設內容與大小;
+    // 出現時直接以目標大小從螢幕上方滑下來,帶一點回彈。
+
+    private readonly TranslateTransform _slide = new();
+    private bool _slidingOut;
+    private static readonly Duration SlideOutDuration = new(TimeSpan.FromMilliseconds(230));
+    private static readonly Duration SlideInDuration = new(TimeSpan.FromMilliseconds(320));
+
+    /// <summary>剛好完全離開螢幕上緣的位移(依目前高度)。</summary>
+    private double OffscreenY => -(_settings.TopOffset + Math.Max(Capsule.ActualHeight, IslandRow.ActualHeight) + 6);
+
+    private void SlideOut()
+    {
+        _slidingOut = true;
+        var anim = new DoubleAnimation(OffscreenY, SlideOutDuration) { EasingFunction = new CubicEase { EasingMode = EasingMode.EaseIn } };
+        anim.Completed += (_, _) =>
         {
-            // 直接收起來隱藏:收合層不淡入(否則淡出途中會閃過時間),隱藏後再重設
-            FadeOutThenReset(TimeSpan.FromMilliseconds(220), TimeSpan.FromMilliseconds(60));
-            CollapsedLayer.BeginAnimation(OpacityProperty, null);
-            CollapsedLayer.Opacity = 0;
+            if (!_slidingOut) return;   // 滑到一半又被叫出來
+            _slidingOut = false;
+            ResetHidden();
+        };
+        _slide.BeginAnimation(TranslateTransform.YProperty, anim);
+    }
+
+    /// <summary>已經看不見了:把膠囊重設成收合狀態,位移歸零,等下次滑入。</summary>
+    /// <summary>膠囊目前完全看不見(而且不是正在滑出)。</summary>
+    private bool IsHiddenNow => !_slidingOut && (Capsule.Visibility != Visibility.Visible || Capsule.Opacity < 0.05);
+
+    private void ResetHidden()
+    {
+        foreach (var (circle, slot) in new[] { (LeftCircle, LeftCircleSlot), (RightCircle, RightCircleSlot) })
+        {
+            circle.Tag = null;
+            circle.BeginAnimation(OpacityProperty, null);
+            circle.Opacity = 0;
+            circle.Visibility = Visibility.Collapsed;
+            slot.Content = null;
+        }
+        Capsule.BeginAnimation(OpacityProperty, null);
+        Capsule.Opacity = 0;
+        Capsule.Visibility = Visibility.Hidden;
+        _slide.BeginAnimation(TranslateTransform.YProperty, null);
+        _slide.Y = 0;
+        if (!_expanded)
+        {
+            ExpandedLayer.BeginAnimation(OpacityProperty, null);
+            ExpandedLayer.Opacity = 0;
+            ExpandedLayer.Visibility = Visibility.Collapsed;
+            ApplyCapsuleChrome();
+            Capsule.CornerRadius = new CornerRadius(_collapsedSize.Height / 2);
+            SetSize(_collapsedSize);
+            UpdateCollapsedLayers(instant: true);
+        }
+    }
+
+    /// <summary>出現(或滑出途中被叫回來):隱藏中就以目標大小從上方滑下;本來就看得到就只調整大小。</summary>
+    private void SlideIn(Size size)
+    {
+        bool fromHidden = !_slidingOut && (Capsule.Visibility != Visibility.Visible || Capsule.Opacity < 0.05);
+        bool wasSlidingOut = _slidingOut;
+        _slidingOut = false;
+        Capsule.BeginAnimation(OpacityProperty, null);
+        Capsule.Opacity = 1;
+        Capsule.Visibility = Visibility.Visible;
+
+        if (fromHidden)
+        {
+            SetSize(size);
+            _slide.BeginAnimation(TranslateTransform.YProperty, null);
+            _slide.Y = OffscreenY;
+        }
+        else if (wasSlidingOut && ExpandedLayer.Visibility == Visibility.Visible && !_expanded)
+        {
+            ShrinkPanel(size);   // 面板滑走途中又移回來:改成縮回一排
         }
         else
         {
-            UpdateCollapsedLayers();
-            Fade(CollapsedLayer, 1, TimeSpan.FromMilliseconds(160), TimeSpan.FromMilliseconds(110));
+            AnimateSize(size, PeekDuration, new CubicEase { EasingMode = EasingMode.EaseOut });
         }
-        NotifyExpand(_active, false);
+
+        _slide.BeginAnimation(TranslateTransform.YProperty,
+            new DoubleAnimation(0, SlideInDuration) { EasingFunction = new BackEase { Amplitude = 0.25, EasingMode = EasingMode.EaseOut } });
+    }
+
+    private void SetSize(Size size)
+    {
+        Capsule.BeginAnimation(WidthProperty, null);
+        Capsule.BeginAnimation(HeightProperty, null);
+        Capsule.Width = size.Width;
+        Capsule.Height = size.Height;
     }
 
     /// <summary>展開期間每 350ms 用 GetCursorPos 確認滑鼠位置;收合後計時器停止,閒置時零成本。</summary>
@@ -549,9 +651,8 @@ public partial class MainWindow : Window, IShellController
         // 提示中滑鼠移上來 → 變成預覽;提示的內容先保留到提示時間結束
         _peeking = true;
         if (CollapsedLayer.Opacity < 1) SetOpacity(CollapsedLayer, 1);
-        Fade(Capsule, 1, TimeSpan.FromMilliseconds(140));
-        AnimateSize(_peekSize, PeekDuration, new CubicEase { EasingMode = EasingMode.EaseOut });
-        UpdateCollapsedLayers();
+        UpdateCollapsedLayers(instant: IsHiddenNow);   // 從隱藏出現:內容先換好再滑下來,不要邊滑邊換
+        SlideIn(_peekSize);
     }
 
     private void OnIslandMouseLeave(object sender, MouseEventArgs e)
@@ -574,31 +675,19 @@ public partial class MainWindow : Window, IShellController
         _peeking = false;
         _announcing = false;
         _announceTimer.Stop();
-        UpdateCircles();
-        AnimateSize(_collapsedSize, PeekDuration, new CubicEase { EasingMode = EasingMode.EaseOut });
         if (IdleVisible)
         {
+            UpdateCircles();
+            AnimateSize(_collapsedSize, PeekDuration, new CubicEase { EasingMode = EasingMode.EaseOut });
             Fade(Capsule, 1, TimeSpan.FromMilliseconds(200));
             UpdateCollapsedLayers();
         }
         else
         {
+            // 內容(含小圓)維持原樣一起往上滑走;看不見後才換回「時間」那一層,不會有殘影
             CloseMenus();
-            FadeOutThenReset(TimeSpan.FromMilliseconds(200));
+            SlideOut();
         }
-    }
-
-    /// <summary>
-    /// 淡出到完全隱藏後,才把內容換回「時間」那一層。
-    /// 若同時切換內容,淡出途中會看到時間的殘影(例如播放中滑鼠離開時)。
-    /// </summary>
-    private void FadeOutThenReset(TimeSpan duration, TimeSpan? delay = null)
-    {
-        Fade(Capsule, 0, duration, delay, completed: () =>
-        {
-            if (_expanded || _peeking || _announcing) return;   // 淡出途中又被叫出來
-            UpdateCollapsedLayers(instant: true);
-        });
     }
 
     // ── 活動(例如正在播放) ───────────────────────────────
@@ -743,9 +832,8 @@ public partial class MainWindow : Window, IShellController
         }
         if (CollapsedLayer.Opacity < 1) SetOpacity(CollapsedLayer, 1);
         _hideTimer.Stop();
-        Fade(Capsule, 1, TimeSpan.FromMilliseconds(160));
-        AnimateSize(_peekSize, PeekDuration, new CubicEase { EasingMode = EasingMode.EaseOut });
-        UpdateCollapsedLayers();
+        UpdateCollapsedLayers(instant: IsHiddenNow);
+        SlideIn(_peekSize);
     }
 
     private IIslandModule? _announced;
