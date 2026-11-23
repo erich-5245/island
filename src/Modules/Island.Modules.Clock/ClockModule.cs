@@ -1,3 +1,4 @@
+using System.IO;
 using System.Globalization;
 using System.Windows;
 using System.Windows.Controls;
@@ -87,7 +88,43 @@ public sealed class ClockModule : IslandModuleBase, IIslandPeekProvider, IIsland
         panel.Children.Add(_expandedTime);
         panel.Children.Add(_expandedDate);
         UpdateText(DateTime.Now);
-        return panel;
+
+        // 背景圖(沒設定時看不見):圓角卡片 + 可調深淺的暗色遮罩,讓白字看得清楚
+        _bgImage = new Border { CornerRadius = new CornerRadius(14), Visibility = Visibility.Collapsed };
+        _bgDim = new Border { CornerRadius = new CornerRadius(14), Background = Brushes.Black, Visibility = Visibility.Collapsed };
+        var grid = new Grid();
+        grid.Children.Add(_bgImage);
+        grid.Children.Add(_bgDim);
+        grid.Children.Add(panel);
+        ApplyBackground();
+        return grid;
+    }
+
+    private Border? _bgImage, _bgDim;
+
+    private string BackgroundPath => Path.Combine(Host.GetModuleDataDirectory(Id), _options.BackgroundFile ?? "");
+
+    /// <summary>依設定套用 / 移除背景圖。只在打開分頁前和改設定時執行。</summary>
+    private void ApplyBackground()
+    {
+        if (_bgImage is null || _bgDim is null || _expandedTime is null || _expandedDate is null) return;
+        var image = string.IsNullOrEmpty(_options.BackgroundFile) ? null : ClockBackground.Load(BackgroundPath, _options.BackgroundBlur);
+        if (image is null)
+        {
+            _bgImage.Visibility = _bgDim.Visibility = Visibility.Collapsed;
+            _bgImage.Background = null;
+            _expandedTime.Effect = _expandedDate.Effect = null;
+            _expandedDate.Foreground = new SolidColorBrush(Color.FromRgb(0x9A, 0x9A, 0x9A));
+            return;
+        }
+        _bgImage.Background = new ImageBrush(image) { Stretch = Stretch.UniformToFill };
+        _bgDim.Opacity = _options.BackgroundDim;
+        _bgImage.Visibility = _bgDim.Visibility = Visibility.Visible;
+        // 圖片上的字:日期改亮一點,加淡淡陰影(文字一分鐘才變一次,成本可忽略)
+        _expandedDate.Foreground = new SolidColorBrush(Color.FromRgb(0xE0, 0xE0, 0xE0));
+        var shadow = new System.Windows.Media.Effects.DropShadowEffect { BlurRadius = 8, ShadowDepth = 0, Opacity = 0.6 };
+        _expandedTime.Effect = shadow;
+        _expandedDate.Effect = shadow;
     }
 
     private void Refresh()
@@ -121,6 +158,123 @@ public sealed class ClockModule : IslandModuleBase, IIslandPeekProvider, IIsland
     public string SettingsTitle => "時間";
 
     public FrameworkElement CreateSettingsView()
+    {
+        var page = new StackPanel();
+        page.Children.Add(HourCard());
+        page.Children.Add(BackgroundCard());
+        return page;
+    }
+
+    private static readonly DependencyProperty StyleProp = FrameworkElement.StyleProperty;
+
+    private FrameworkElement BackgroundCard()
+    {
+        var card = new Border();
+        card.SetResourceReference(StyleProp, IslandTheme.SettingsCard);
+        var p = new StackPanel();
+        var title = new TextBlock { Text = "「時間」分頁的背景圖" };
+        title.SetResourceReference(StyleProp, IslandTheme.SettingsTitleText);
+        var caption = new TextBlock { Text = "選一張自己的圖片當展開後「時間」分頁的背景。圖片會複製一份保存,原檔之後搬走也沒關係。動態圖只會顯示第一格。" };
+        caption.SetResourceReference(StyleProp, IslandTheme.SettingsCaptionText);
+        p.Children.Add(title);
+        p.Children.Add(caption);
+
+        // 預覽(和分頁一樣的比例與暗色遮罩)
+        var preview = new Border { Width = 228, Height = 100, CornerRadius = new CornerRadius(10), Margin = new Thickness(0, 10, 0, 0), HorizontalAlignment = HorizontalAlignment.Left, Background = new SolidColorBrush(Color.FromRgb(0x0A, 0x0A, 0x0A)) };
+        var previewDim = new Border { CornerRadius = new CornerRadius(10), Background = Brushes.Black };
+        var previewTime = new TextBlock { Text = DateTime.Now.ToString(Format, CultureInfo.InvariantCulture), FontSize = 24, FontWeight = FontWeights.SemiBold, Foreground = Brushes.White, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
+        preview.Child = new Grid { Children = { previewDim, previewTime } };
+        p.Children.Add(preview);
+
+        void UpdatePreview()
+        {
+            var img = string.IsNullOrEmpty(_options.BackgroundFile) ? null : ClockBackground.Load(BackgroundPath, _options.BackgroundBlur);
+            preview.Background = img is null ? new SolidColorBrush(Color.FromRgb(0x0A, 0x0A, 0x0A)) : new ImageBrush(img) { Stretch = Stretch.UniformToFill };
+            previewDim.Opacity = img is null ? 0 : _options.BackgroundDim;
+        }
+
+        var buttons = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 10, 0, 0) };
+        var pick = new Button { Content = "選擇圖片…" };
+        pick.SetResourceReference(StyleProp, IslandTheme.SettingsButton);
+        var remove = new Button { Content = "移除", Margin = new Thickness(8, 0, 0, 0), IsEnabled = !string.IsNullOrEmpty(_options.BackgroundFile) };
+        remove.SetResourceReference(StyleProp, IslandTheme.SettingsButton);
+        buttons.Children.Add(pick);
+        buttons.Children.Add(remove);
+        p.Children.Add(buttons);
+
+        pick.Click += (_, _) =>
+        {
+            var dlg = new Microsoft.Win32.OpenFileDialog
+            {
+                Title = "選擇背景圖片",
+                Filter = "圖片 (*.jpg;*.jpeg;*.png;*.bmp;*.gif;*.webp)|*.jpg;*.jpeg;*.png;*.bmp;*.gif;*.webp",
+            };
+            if (dlg.ShowDialog() != true || !ClockBackground.IsSupported(dlg.FileName)) return;
+            if (ClockBackground.Load(dlg.FileName, blur: false) is null)
+            {
+                MessageBox.Show("這張圖片讀不出來,請換一張。", "Island");
+                return;
+            }
+            try { _options.BackgroundFile = ClockBackground.Import(dlg.FileName, Host.GetModuleDataDirectory(Id)); }
+            catch (Exception ex) { Host.Log($"時間:背景圖複製失敗:{ex.Message}"); return; }
+            SaveOptions();
+            remove.IsEnabled = true;
+            UpdatePreview();
+        };
+        remove.Click += (_, _) =>
+        {
+            _options.BackgroundFile = null;
+            SaveOptions();
+            ClockBackground.Remove(Host.GetModuleDataDirectory(Id));
+            remove.IsEnabled = false;
+            UpdatePreview();
+        };
+
+        // 暗度
+        var dimRow = new DockPanel { Margin = new Thickness(0, 12, 0, 0) };
+        var dimLabel = new TextBlock { Text = "暗度", Width = 48, VerticalAlignment = VerticalAlignment.Center, Foreground = Brushes.White, FontSize = 12.5 };
+        var dimValue = new TextBlock { Width = 44, TextAlignment = TextAlignment.Right, VerticalAlignment = VerticalAlignment.Center, Foreground = Brushes.White, FontSize = 12.5 };
+        DockPanel.SetDock(dimLabel, Dock.Left);
+        DockPanel.SetDock(dimValue, Dock.Right);
+        var slider = new Slider { Minimum = 0, Maximum = 80, Value = _options.BackgroundDim * 100, Width = 220, HorizontalAlignment = HorizontalAlignment.Left, VerticalAlignment = VerticalAlignment.Center };
+        if (Application.Current.TryFindResource("Settings.Slider") is Style sliderStyle) slider.Style = sliderStyle;
+        dimValue.Text = $"{slider.Value:0}%";
+        slider.ValueChanged += (_, e) =>
+        {
+            _options.BackgroundDim = Math.Round(e.NewValue) / 100;
+            dimValue.Text = $"{Math.Round(e.NewValue):0}%";
+            previewDim.Opacity = string.IsNullOrEmpty(_options.BackgroundFile) ? 0 : _options.BackgroundDim;
+            SaveOptions(reload: false);
+            if (_bgDim is not null) _bgDim.Opacity = _options.BackgroundDim;
+        };
+        dimRow.Children.Add(dimLabel);
+        dimRow.Children.Add(dimValue);
+        dimRow.Children.Add(slider);
+        p.Children.Add(dimRow);
+
+        // 模糊
+        var blurRow = new DockPanel { Margin = new Thickness(0, 10, 0, 0) };
+        var blurToggle = new CheckBox { IsChecked = _options.BackgroundBlur };
+        blurToggle.SetResourceReference(StyleProp, IslandTheme.SettingsToggle);
+        DockPanel.SetDock(blurToggle, Dock.Right);
+        blurRow.Children.Add(blurToggle);
+        blurRow.Children.Add(new TextBlock { Text = "模糊(字比較清楚)", VerticalAlignment = VerticalAlignment.Center, Foreground = Brushes.White, FontSize = 12.5 });
+        blurToggle.Checked += (_, _) => { _options.BackgroundBlur = true; SaveOptions(); UpdatePreview(); };
+        blurToggle.Unchecked += (_, _) => { _options.BackgroundBlur = false; SaveOptions(); UpdatePreview(); };
+        p.Children.Add(blurRow);
+
+        UpdatePreview();
+        card.Child = p;
+        return card;
+    }
+
+    private void SaveOptions(bool reload = true)
+    {
+        _options.Save(Host.GetModuleDataDirectory(Id));
+        if (reload) ApplyBackground();
+    }
+
+    private FrameworkElement HourCard()
     {
         var card = new Border();
         card.SetResourceReference(FrameworkElement.StyleProperty, IslandTheme.SettingsCard);
@@ -173,6 +327,14 @@ internal sealed class ClockOptions
 {
     public bool Use24Hour { get; set; } = true;
 
+    /// <summary>「時間」分頁背景圖的檔名(在 modules\clock 裡);null = 不用。</summary>
+    public string? BackgroundFile { get; set; }
+
+    /// <summary>背景圖上的暗色遮罩 0–0.8。</summary>
+    public double BackgroundDim { get; set; } = 0.4;
+
+    public bool BackgroundBlur { get; set; }
+
     private static readonly System.Text.Json.JsonSerializerOptions JsonOptions = new()
     {
         WriteIndented = true,
@@ -185,7 +347,12 @@ internal sealed class ClockOptions
         {
             var file = System.IO.Path.Combine(dir, "options.json");
             if (System.IO.File.Exists(file))
-                return System.Text.Json.JsonSerializer.Deserialize<ClockOptions>(System.IO.File.ReadAllText(file), JsonOptions) ?? new();
+            {
+                var o = System.Text.Json.JsonSerializer.Deserialize<ClockOptions>(System.IO.File.ReadAllText(file), JsonOptions) ?? new();
+                o.BackgroundDim = double.IsFinite(o.BackgroundDim) ? Math.Clamp(o.BackgroundDim, 0, 0.8) : 0.4;
+                if (o.BackgroundFile is { } f && (f.Contains('/') || f.Contains('\\') || f.Contains(".."))) o.BackgroundFile = null;   // 只接受資料夾裡的檔名
+                return o;
+            }
         }
         catch { }
         return new();
