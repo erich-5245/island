@@ -25,7 +25,7 @@ public sealed class SysMonModule : IslandModuleBase, IIslandCompact
 
     public override string Id => "sysmon";
     public override string Title => "系統";
-    public bool EnabledByDefault => false;
+    public override bool EnabledByDefault => false;
 
     public SysSample Last { get; private set; }
 

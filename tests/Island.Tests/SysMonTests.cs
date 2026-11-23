@@ -62,4 +62,16 @@ public class SysMonTests
         Assert.Empty(settings.EnabledModules);
         Assert.False(ModuleLoader.IsEnabled(settings, "sysmon", false));
     }
+
+public class ModuleDefaultsTests
+{
+    /// <summary>透過介面讀(外殼就是這樣讀的),子類別的設定要生效。</summary>
+    [Fact]
+    public void SysMon_IsOffByDefault_ThroughInterface() =>
+        Assert.False(((Island.Core.IIslandModule)new SysMonModule()).EnabledByDefault);
+
+    [Fact]
+    public void Todo_IsOnByDefault() =>
+        Assert.True(((Island.Core.IIslandModule)new Island.Modules.Todo.TodoModule()).EnabledByDefault);
+}
 }

@@ -10,6 +10,9 @@ public abstract class IslandModuleBase : IIslandModule
     public abstract string Id { get; }
     public abstract string Title { get; }
 
+    /// <summary>預設是否啟用(見 <see cref="IIslandModule.EnabledByDefault"/>)。</summary>
+    public virtual bool EnabledByDefault => true;
+
     protected IIslandHost Host { get; private set; } = null!;
 
     public IslandBadge? Badge => _badge;
