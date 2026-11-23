@@ -18,7 +18,7 @@ namespace Island.Modules.Media;
 /// 效能:完全事件驅動。系統通知「換歌 / 播放狀態 / 時間軸」改變時才更新;
 /// 進度條只有在展開且停在這個分頁、而且正在播放時,才每秒更新一次。
 /// </summary>
-public sealed class MediaModule : IslandModuleBase, IIslandActivity, IIslandExpandAware, IIslandCompact
+public sealed class MediaModule : IslandModuleBase, IIslandActivity, IIslandExpandAware, IIslandCompact, IIslandSettingsPage
 {
     /// <summary>暫停後多久才算「沒有活動」(換歌時狀態會短暫跳動,避免膠囊閃爍)。</summary>
     private static readonly TimeSpan InactiveGrace = TimeSpan.FromSeconds(2);
@@ -54,8 +54,11 @@ public sealed class MediaModule : IslandModuleBase, IIslandActivity, IIslandExpa
     public event EventHandler? ActivityChanged;
     public bool IsActivityActive => _activityActive;
 
+    private MediaOptions _options = new();
+
     protected override void OnInitialize()
     {
+        _options = MediaOptions.Load(Host.GetModuleDataDirectory(Id));
         _refreshTimer = new DispatcherTimer(DispatcherPriority.Background, Host.Dispatcher) { Interval = RefreshDebounce };
         _refreshTimer.Tick += (_, _) => { _refreshTimer.Stop(); _ = RefreshAsync(); };
         _graceTimer = new DispatcherTimer(DispatcherPriority.Background, Host.Dispatcher) { Interval = InactiveGrace };
@@ -84,7 +87,35 @@ public sealed class MediaModule : IslandModuleBase, IIslandActivity, IIslandExpa
         }
     }
 
-    public FrameworkElement CreateActivityView() => _activityView ??= new MediaActivityView(Current);
+    public FrameworkElement CreateActivityView() => _activityView ??= new MediaActivityView(Current, _options.Visualizer);
+
+    // ── 設定頁 ──
+    public string SettingsTitle => "播放";
+
+    public FrameworkElement CreateSettingsView()
+    {
+        var card = new System.Windows.Controls.Border();
+        card.SetResourceReference(FrameworkElement.StyleProperty, IslandTheme.SettingsCard);
+        var grid = new System.Windows.Controls.Grid();
+        grid.ColumnDefinitions.Add(new System.Windows.Controls.ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        grid.ColumnDefinitions.Add(new System.Windows.Controls.ColumnDefinition { Width = GridLength.Auto });
+        var text = new System.Windows.Controls.StackPanel();
+        var title = new System.Windows.Controls.TextBlock { Text = "音樂律動" };
+        title.SetResourceReference(FrameworkElement.StyleProperty, IslandTheme.SettingsTitleText);
+        var caption = new System.Windows.Controls.TextBlock { Text = "播放時長條右邊的 4 根小柱子跟著音量跳動。只在看得到時更新(約 1% CPU),關掉改成靜態的喇叭圖示。重新啟動 Island 後套用。" };
+        caption.SetResourceReference(FrameworkElement.StyleProperty, IslandTheme.SettingsCaptionText);
+        text.Children.Add(title);
+        text.Children.Add(caption);
+        grid.Children.Add(text);
+        var toggle = new System.Windows.Controls.CheckBox { IsChecked = _options.Visualizer, Margin = new Thickness(16, 0, 0, 0) };
+        toggle.SetResourceReference(FrameworkElement.StyleProperty, IslandTheme.SettingsToggle);
+        toggle.Checked += (_, _) => { _options.Visualizer = true; _options.Save(Host.GetModuleDataDirectory(Id)); };
+        toggle.Unchecked += (_, _) => { _options.Visualizer = false; _options.Save(Host.GetModuleDataDirectory(Id)); };
+        System.Windows.Controls.Grid.SetColumn(toggle, 1);
+        grid.Children.Add(toggle);
+        card.Child = grid;
+        return card;
+    }
 
     public bool IsCompactRelevant => _activityActive;
 
@@ -467,5 +498,38 @@ public sealed record MediaSnapshot
             if (Duration > TimeSpan.Zero && pos > Duration) pos = Duration;
             return pos;
         }
+    }
+}
+
+/// <summary>%LOCALAPPDATA%\Island\modules\media\options.json</summary>
+internal sealed class MediaOptions
+{
+    public bool Visualizer { get; set; } = true;
+
+    private static readonly System.Text.Json.JsonSerializerOptions JsonOptions = new()
+    {
+        WriteIndented = true,
+        PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase,
+    };
+
+    public static MediaOptions Load(string dir)
+    {
+        try
+        {
+            var file = System.IO.Path.Combine(dir, "options.json");
+            if (System.IO.File.Exists(file)) return System.Text.Json.JsonSerializer.Deserialize<MediaOptions>(System.IO.File.ReadAllText(file), JsonOptions) ?? new();
+        }
+        catch { }
+        return new();
+    }
+
+    public void Save(string dir)
+    {
+        try
+        {
+            System.IO.Directory.CreateDirectory(dir);
+            System.IO.File.WriteAllText(System.IO.Path.Combine(dir, "options.json"), System.Text.Json.JsonSerializer.Serialize(this, JsonOptions));
+        }
+        catch { }
     }
 }

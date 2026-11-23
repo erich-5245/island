@@ -278,3 +278,18 @@ public class SettingsTests
         Assert.Equal(s.LiveOrder.Distinct().Count(), s.LiveOrder.Count);
     }
 }
+
+public class AudioMeterTests
+{
+    [Fact]
+    public void OpensDefaultDevice_AndReadsPeakInRange()
+    {
+        using var meter = new AudioMeter();
+        bool opened = meter.Open();          // 沒有音效裝置的電腦會是 false,也不能丟例外
+        float peak = meter.Peak();
+        Assert.InRange(peak, 0f, 1f);
+        meter.Close();
+        Assert.Equal(0f, meter.Peak());       // 關閉後讀到 0
+        _ = opened;
+    }
+}

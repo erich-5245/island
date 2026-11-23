@@ -862,9 +862,18 @@ public partial class MainWindow : Window, IShellController
             return i < 0 ? int.MaxValue : i;
         });
 
-    /// <summary>中間長條要顯示的活動:依 liveOrder 第一個有活動的模組。</summary>
+    /// <summary>中間長條要顯示的活動:專注中的模組優先,其次依 liveOrder 第一個有活動的模組。</summary>
     private IIslandModule? CurrentActivity =>
-        LiveOrdered.FirstOrDefault(m => m is IIslandActivity { IsActivityActive: true });
+        FocusModule ?? LiveOrdered.FirstOrDefault(m => m is IIslandActivity { IsActivityActive: true });
+
+    /// <summary>正在專注的模組(番茄鐘專注中);沒有就是 null。</summary>
+    private IIslandModule? FocusModule =>
+        _modules.FirstOrDefault(m => m is IIslandFocus f && SafeFocusing(f) && m is IIslandActivity);
+
+    private static bool SafeFocusing(IIslandFocus f)
+    {
+        try { return f.IsFocusing; } catch { return false; }
+    }
 
     private void OnActivityChanged()
     {
@@ -881,6 +890,8 @@ public partial class MainWindow : Window, IShellController
         if (!_settings.ShowOsd && moduleId == "osd") return;
         var module = _modules.FirstOrDefault(m => string.Equals(m.Id, moduleId, StringComparison.OrdinalIgnoreCase));
         if (module is not IIslandActivity) return;
+        // 專注模式:只有專注中的模組自己和音量亮度提示可以跳出來
+        if (FocusModule is { } focus && !ReferenceEquals(focus, module) && moduleId != "osd") return;
 
         _announced = module;
         _announceTimer.Stop();
@@ -972,7 +983,8 @@ public partial class MainWindow : Window, IShellController
         var picks = new List<CircleRef>();
         // 有活動:其他有東西可看的模組放小圓;沒有活動(日期 / 時間那一排):只放「沒有活動也顯示」的(例如捷徑)
         bool idleRow = pill is null && _surface == Surface.Peek && _announced is null;
-        if (pill is not null || idleRow)
+        bool focusing = FocusModule is not null;   // 專注中:只顯示倒數,不放小圓
+        if (!focusing && (pill is not null || idleRow))
         {
             foreach (var m in LiveOrdered)
             {

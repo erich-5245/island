@@ -5,8 +5,8 @@ using System.Windows.Media;
 namespace Island.Modules.Media;
 
 /// <summary>
-/// 播放中、閒置時顯示在小膠囊裡:[封面] 歌名 [♪]。
-/// 沒有動畫(軟體算圖下持續動畫會一直耗 CPU)。
+/// 播放中顯示在長條裡:[封面] 歌名 [律動條 或 ♪]。
+/// 律動條只在看得到、正在播放時每秒更新 20 次(設定 →「播放」可以關掉,改回靜態圖示)。
 /// </summary>
 internal sealed class MediaActivityView : Grid
 {
@@ -15,7 +15,9 @@ internal sealed class MediaActivityView : Grid
     private readonly TextBlock _glyphFallback;
     private readonly TextBlock _title;
 
-    public MediaActivityView(MediaSnapshot initial)
+    private readonly AudioBars? _bars;
+
+    public MediaActivityView(MediaSnapshot initial, bool visualizer)
     {
         ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
@@ -53,14 +55,23 @@ internal sealed class MediaActivityView : Grid
         SetColumn(_title, 1);
         Children.Add(_title);
 
-        var indicator = new TextBlock
+        FrameworkElement indicator;
+        if (visualizer)
         {
-            Text = "\uE995",   // 音量圖示,表示「正在發出聲音」
-            FontFamily = new FontFamily("Segoe Fluent Icons, Segoe MDL2 Assets"),
-            FontSize = 12,
-            VerticalAlignment = VerticalAlignment.Center,
-        };
-        indicator.SetResourceReference(TextBlock.ForegroundProperty, Island.Core.IslandTheme.Accent);
+            indicator = _bars = new AudioBars();
+        }
+        else
+        {
+            var glyph = new TextBlock
+            {
+                Text = "\uE995",   // 音量圖示,表示「正在發出聲音」
+                FontFamily = new FontFamily("Segoe Fluent Icons, Segoe MDL2 Assets"),
+                FontSize = 12,
+                VerticalAlignment = VerticalAlignment.Center,
+            };
+            glyph.SetResourceReference(TextBlock.ForegroundProperty, Island.Core.IslandTheme.Accent);
+            indicator = glyph;
+        }
         SetColumn(indicator, 2);
         Children.Add(indicator);
 
@@ -70,6 +81,7 @@ internal sealed class MediaActivityView : Grid
     public void Update(MediaSnapshot s)
     {
         _title.Text = string.IsNullOrEmpty(s.Artist) ? s.Title : $"{s.Title} · {s.Artist}";
+        _bars?.SetPlaying(s.IsPlaying);
         if (s.Thumbnail is not null)
         {
             _artBrush.ImageSource = s.Thumbnail;

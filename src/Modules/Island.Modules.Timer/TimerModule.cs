@@ -19,7 +19,7 @@ public enum PomodoroPhase { Focus, ShortBreak, LongBreak }
 /// 效能:只在「執行中」才有每秒一次的計時器;以「結束時刻」計算剩餘時間,
 /// 電腦睡眠或計時器延遲都不會累積誤差。沒有在計時時完全不耗資源。
 /// </summary>
-public sealed class TimerModule : IslandModuleBase, IIslandActivity, IIslandExpandAware, IIslandCompact
+public sealed class TimerModule : IslandModuleBase, IIslandActivity, IIslandExpandAware, IIslandCompact, IIslandFocus, IIslandSettingsPage
 {
     public static readonly TimeSpan FocusLength = TimeSpan.FromMinutes(25);
     public static readonly TimeSpan ShortBreakLength = TimeSpan.FromMinutes(5);
@@ -63,8 +63,50 @@ public sealed class TimerModule : IslandModuleBase, IIslandActivity, IIslandExpa
     public event EventHandler? ActivityChanged;
     public bool IsActivityActive => State is TimerState.Running or TimerState.Paused or TimerState.Done;
 
+    // ── 專注模式 ──
+    private TimerOptions _options = new();
+
+    /// <summary>番茄鐘專注中(執行中或暫停)而且設定開著:島只顯示倒數,其他提示暫停。</summary>
+    public bool IsFocusing => _options.FocusMode && Mode == TimerMode.Pomodoro && Phase == PomodoroPhase.Focus
+                              && State is TimerState.Running or TimerState.Paused;
+
+    public string SettingsTitle => "計時";
+
+    public FrameworkElement CreateSettingsView()
+    {
+        var card = new System.Windows.Controls.Border();
+        card.SetResourceReference(FrameworkElement.StyleProperty, IslandTheme.SettingsCard);
+        var grid = new System.Windows.Controls.Grid();
+        grid.ColumnDefinitions.Add(new System.Windows.Controls.ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        grid.ColumnDefinitions.Add(new System.Windows.Controls.ColumnDefinition { Width = GridLength.Auto });
+        var text = new System.Windows.Controls.StackPanel();
+        var title = new System.Windows.Controls.TextBlock { Text = "番茄鐘專注模式" };
+        title.SetResourceReference(FrameworkElement.StyleProperty, IslandTheme.SettingsTitleText);
+        var caption = new System.Windows.Controls.TextBlock { Text = "番茄鐘專注的 25 分鐘內,島只顯示倒數:換歌、下載完成等提示暫停,也不顯示小圓。休息時恢復。音量亮度提示照常。" };
+        caption.SetResourceReference(FrameworkElement.StyleProperty, IslandTheme.SettingsCaptionText);
+        text.Children.Add(title);
+        text.Children.Add(caption);
+        grid.Children.Add(text);
+        var toggle = new System.Windows.Controls.CheckBox { IsChecked = _options.FocusMode, Margin = new Thickness(16, 0, 0, 0) };
+        toggle.SetResourceReference(FrameworkElement.StyleProperty, IslandTheme.SettingsToggle);
+        toggle.Checked += (_, _) => SetFocusMode(true);
+        toggle.Unchecked += (_, _) => SetFocusMode(false);
+        System.Windows.Controls.Grid.SetColumn(toggle, 1);
+        grid.Children.Add(toggle);
+        card.Child = grid;
+        return card;
+    }
+
+    private void SetFocusMode(bool on)
+    {
+        _options.FocusMode = on;
+        _options.Save(Host.GetModuleDataDirectory(Id));
+        ActivityChanged?.Invoke(this, EventArgs.Empty);
+    }
+
     protected override void OnInitialize()
     {
+        _options = TimerOptions.Load(Host.GetModuleDataDirectory(Id));
         _tick = new DispatcherTimer(DispatcherPriority.Normal, Host.Dispatcher) { Interval = TimeSpan.FromSeconds(1) };
         _tick.Tick += (_, _) => OnTick();
         _doneTimer = new DispatcherTimer(DispatcherPriority.Background, Host.Dispatcher) { Interval = DoneLinger };
@@ -260,10 +302,10 @@ public sealed class TimerModule : IslandModuleBase, IIslandActivity, IIslandExpa
 
     private void SetState(TimerState state)
     {
-        bool wasActive = IsActivityActive;
+        bool wasActive = IsActivityActive, wasFocusing = IsFocusing;
         State = state;
         Refresh();
-        if (wasActive != IsActivityActive) ActivityChanged?.Invoke(this, EventArgs.Empty);
+        if (wasActive != IsActivityActive || wasFocusing != IsFocusing) ActivityChanged?.Invoke(this, EventArgs.Empty);
     }
 
     /// <summary>
@@ -330,5 +372,38 @@ public sealed class TimerModule : IslandModuleBase, IIslandActivity, IIslandExpa
         Stop();
         SystemEvents.PowerModeChanged -= OnPowerModeChanged;
         base.Dispose();
+    }
+}
+
+/// <summary>%LOCALAPPDATA%\Island\modules\timer\options.json</summary>
+internal sealed class TimerOptions
+{
+    public bool FocusMode { get; set; } = true;
+
+    private static readonly System.Text.Json.JsonSerializerOptions JsonOptions = new()
+    {
+        WriteIndented = true,
+        PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase,
+    };
+
+    public static TimerOptions Load(string dir)
+    {
+        try
+        {
+            var file = Path.Combine(dir, "options.json");
+            if (File.Exists(file)) return System.Text.Json.JsonSerializer.Deserialize<TimerOptions>(File.ReadAllText(file), JsonOptions) ?? new();
+        }
+        catch { }
+        return new();
+    }
+
+    public void Save(string dir)
+    {
+        try
+        {
+            Directory.CreateDirectory(dir);
+            File.WriteAllText(Path.Combine(dir, "options.json"), System.Text.Json.JsonSerializer.Serialize(this, JsonOptions));
+        }
+        catch { }
     }
 }
