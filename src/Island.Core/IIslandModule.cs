@@ -37,4 +37,9 @@ public interface IIslandModule : IDisposable
 
     /// <summary>模組通知外殼「<see cref="Badge"/> 變了」,外殼收到後重新讀取。</summary>
     event EventHandler? BadgeChanged;
+
+    /// <summary>
+    /// 預設是否啟用。false = 使用者要在設定 →「模組」自己打開(例如系統監看、剪貼簿紀錄這類比較私人或比較吵的功能)。
+    /// </summary>
+    bool EnabledByDefault => true;
 }

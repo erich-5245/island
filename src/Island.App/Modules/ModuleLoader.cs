@@ -15,7 +15,23 @@ internal static class ModuleLoader
     private const string Pattern = "Island.Modules.*.dll";
 
     /// <summary>找到的所有模組(含停用的),給設定視窗的「模組」頁使用。</summary>
-    public static IReadOnlyList<(string Id, string Title)> Discovered { get; private set; } = [];
+    public static IReadOnlyList<(string Id, string Title, bool DefaultOn)> Discovered { get; private set; } = [];
+
+    /// <summary>模組是否要載入:使用者關掉的不載入;預設關閉的模組要使用者打開才載入。</summary>
+    public static bool IsEnabled(IslandSettings settings, string id, bool defaultOn)
+    {
+        if (settings.DisabledModules.Any(x => string.Equals(x, id, StringComparison.OrdinalIgnoreCase))) return false;
+        return defaultOn || settings.EnabledModules.Any(x => string.Equals(x, id, StringComparison.OrdinalIgnoreCase));
+    }
+
+    /// <summary>設定頁切換模組開關。</summary>
+    public static void SetEnabled(IslandSettings settings, string id, bool defaultOn, bool on)
+    {
+        settings.DisabledModules.RemoveAll(x => string.Equals(x, id, StringComparison.OrdinalIgnoreCase));
+        settings.EnabledModules.RemoveAll(x => string.Equals(x, id, StringComparison.OrdinalIgnoreCase));
+        if (on && !defaultOn) settings.EnabledModules.Add(id);
+        if (!on && defaultOn) settings.DisabledModules.Add(id);
+    }
 
     public static IReadOnlyList<IIslandModule> LoadAll(IslandSettings settings, IIslandHost host)
     {
@@ -51,15 +67,14 @@ internal static class ModuleLoader
             }
         }
 
-        Discovered = found.Select(m => (m.Id, m.Title)).ToList();
-        var disabled = new HashSet<string>(settings.DisabledModules, StringComparer.OrdinalIgnoreCase);
+        Discovered = found.Select(m => (m.Id, m.Title, m.EnabledByDefault)).ToList();
         var ordered = found
-            .Where(m => !disabled.Contains(m.Id))
+            .Where(m => IsEnabled(settings, m.Id, m.EnabledByDefault))
             .OrderBy(m => OrderOf(settings.Modules, m.Id))
             .ThenBy(m => m.Id, StringComparer.OrdinalIgnoreCase)
             .ToList();
 
-        foreach (var m in found.Where(m => disabled.Contains(m.Id))) m.Dispose();
+        foreach (var m in found.Where(m => !IsEnabled(settings, m.Id, m.EnabledByDefault))) m.Dispose();
 
         var loaded = new List<IIslandModule>(ordered.Count);
         foreach (var module in ordered)

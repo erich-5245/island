@@ -253,13 +253,12 @@ public partial class SettingsWindow : Window
         var p = new StackPanel();
         p.Children.Add(Caption("關掉的模組不會載入(也不會佔分頁)。重新啟動後套用。"));
         p.Children.Add(new Border { Height = 10 });
-        foreach (var (id, title) in ModuleLoader.Discovered.OrderBy(d => OrderIndex(d.Id)))
+        foreach (var (id, title, defaultOn) in ModuleLoader.Discovered.OrderBy(d => OrderIndex(d.Id)))
         {
-            bool enabled = !_settings.DisabledModules.Any(x => Same(x, id));
-            p.Children.Add(ToggleCard(title, id, enabled, on =>
+            bool enabled = ModuleLoader.IsEnabled(_settings, id, defaultOn);
+            p.Children.Add(ToggleCard(title, defaultOn ? id : $"{id} · 預設關閉", enabled, on =>
             {
-                _settings.DisabledModules.RemoveAll(x => Same(x, id));
-                if (!on) _settings.DisabledModules.Add(id);
+                ModuleLoader.SetEnabled(_settings, id, defaultOn, on);
                 Save();
                 NeedRestart();
             }));

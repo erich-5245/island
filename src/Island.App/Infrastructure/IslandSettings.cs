@@ -67,6 +67,9 @@ internal sealed class IslandSettings
     /// <summary>要停用的模組 Id。</summary>
     public List<string> DisabledModules { get; set; } = [];
 
+    /// <summary>預設關閉、使用者自己打開的模組 Id(EnabledByDefault = false 的模組)。</summary>
+    public List<string> EnabledModules { get; set; } = [];
+
     /// <summary>點小圓的動作:模組 Id → "tab"(打開分頁)/ "action"(直接執行)。沒有的照模組預設。</summary>
     public Dictionary<string, string> CircleActions { get; set; } = [];
 
@@ -130,6 +133,7 @@ internal sealed class IslandSettings
         ExpandedWidth = Math.Clamp(ExpandedWidth, CollapsedWidth, 1200);
         ExpandedHeight = Math.Clamp(ExpandedHeight, CollapsedHeight, 800);
         CircleActions ??= [];
+        EnabledModules ??= [];
         Theme ??= new ThemeSettings();
         Theme.Normalize();
         CustomThemes ??= [];
