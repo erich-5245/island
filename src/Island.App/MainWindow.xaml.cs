@@ -1,4 +1,4 @@
-﻿using System.Windows;
+using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Interop;
@@ -931,12 +931,15 @@ public partial class MainWindow : Window, IShellController
     {
         var pill = _surface == Surface.Peek && _announced is null ? CurrentActivity : null;
         var picks = new List<IIslandModule>();
-        if (pill is not null)
+        // 有活動:其他有東西可看的模組放小圓;沒有活動(日期 / 時間那一排):只放「沒有活動也顯示」的(例如捷徑)
+        bool idleRow = pill is null && _surface == Surface.Peek && _announced is null;
+        if (pill is not null || idleRow)
         {
             foreach (var m in LiveOrdered)
             {
                 if (picks.Count == 2) break;
                 if (ReferenceEquals(m, pill) || m is not IIslandCompact c) continue;
+                if (idleRow && !c.ShowWithoutActivity) continue;
                 if (_settings.LiveHidden.Contains(m.Id, StringComparer.OrdinalIgnoreCase)) continue;
                 bool relevant;
                 try { relevant = c.IsCompactRelevant; } catch { relevant = false; }

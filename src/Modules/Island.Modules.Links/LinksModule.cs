@@ -32,7 +32,7 @@ public sealed class LinkItem
 /// 加入方式:設定頁從「開著的視窗」挑、瀏覽選檔、輸入網址,或在捷徑分頁開著時把捷徑 / 程式 / 資料夾拖到島上。
 /// 清單存在 %LOCALAPPDATA%\Island\modules\links\links.json。平常不耗資源。
 /// </summary>
-public sealed class LinksModule : IslandModuleBase, IIslandDropTarget, IIslandSettingsPage
+public sealed class LinksModule : IslandModuleBase, IIslandDropTarget, IIslandSettingsPage, IIslandCompact
 {
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
@@ -59,6 +59,12 @@ public sealed class LinksModule : IslandModuleBase, IIslandDropTarget, IIslandSe
 
     public override FrameworkElement CreateExpandedView() => _view ??= new LinksView(this);
     public FrameworkElement CreateSettingsView() => new LinksSettingsView(this);
+
+    // ── 小圓:滑鼠移到島上時固定顯示的捷徑入口,點一下打開捷徑分頁 ──
+    private LinksCompactView? _compact;
+    public bool IsCompactRelevant => Items.Count > 0;
+    public bool ShowWithoutActivity => true;
+    public FrameworkElement CreateCompactView() => _compact ??= new LinksCompactView(this);
 
     // ── 開啟 / 切換 ─────────────────────────────────────
 

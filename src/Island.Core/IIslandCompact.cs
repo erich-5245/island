@@ -16,4 +16,10 @@ public interface IIslandCompact
 
     /// <summary>小圓內的畫面(約 34×34 DIP,外殼會裁成圓形)。外殼只呼叫一次。</summary>
     FrameworkElement? CreateCompactView();
+
+    /// <summary>
+    /// 沒有任何活動(中間長條是日期 / 時間那一排)時也顯示這個小圓,例如「捷徑」入口。
+    /// 預設 false:一般模組只在中間有活動時才放進小圓。
+    /// </summary>
+    bool ShowWithoutActivity => false;
 }
