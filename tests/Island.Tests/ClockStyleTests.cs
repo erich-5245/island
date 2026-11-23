@@ -9,6 +9,17 @@ namespace Island.Tests;
 public sealed class ClockStyleTests
 {
     [Fact]
+    public void Canonical_MapsPureWhiteToWhiteAndUppercasesHex()
+    {
+        Assert.Equal("white", ClockStyle.Canonical("#FFFFFF"));
+        Assert.Equal("white", ClockStyle.Canonical("#ffffff"));
+        Assert.Equal("#FF9F0A", ClockStyle.Canonical("#ff9f0a"));
+        Assert.Equal("background", ClockStyle.Canonical("background"));
+        Assert.Equal("white", ClockStyle.Canonical("nonsense"));
+        Assert.Equal("white", ClockStyle.Canonical(null));
+    }
+
+    [Fact]
     public void Resolve_HandlesWhiteHexAndBackground()
     {
         Assert.Equal(Colors.White, ClockStyle.Resolve("white", null, 0));

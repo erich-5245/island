@@ -66,6 +66,14 @@ public static class ClockStyle
 
     public static string ToHex(Color c) => $"#{c.R:X2}{c.G:X2}{c.B:X2}";
 
+    /// <summary>統一顏色設定的寫法:純白一律記成 "white"、色碼一律大寫,色點才認得出是哪一顆;看不懂的回白色。</summary>
+    public static string Canonical(string? setting)
+    {
+        if (setting == FromBackground || setting == White) return setting;
+        if (!TryParse(setting, out var c)) return White;
+        return c == Colors.White ? White : ToHex(c);
+    }
+
     /// <summary>設定的顏色("white"、"background"、"#RRGGBB")+ 深淺 → 實際顏色。</summary>
     public static Color Resolve(string? setting, Color? sampled, double lightness)
     {

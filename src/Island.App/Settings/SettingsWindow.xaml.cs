@@ -356,7 +356,7 @@ public partial class SettingsWindow : Window
             _settings.Save();
             System.IO.File.WriteAllText(dlg.FileName, SettingsBundle.Export(AppPaths.DataDirectory));
         }
-        catch (Exception ex) { MessageBox.Show(this, $"匯出失敗:{ex.Message}", "Island"); }
+        catch (Exception ex) { IslandDialog.Show(this, $"匯出失敗:{ex.Message}"); }
     }
 
     private void ImportSettings()
@@ -368,11 +368,11 @@ public partial class SettingsWindow : Window
             if (new System.IO.FileInfo(dlg.FileName).Length > 4 * 1024 * 1024) throw new System.IO.InvalidDataException("檔案太大,不是 Island 的設定檔");
             int n = SettingsBundle.Import(AppPaths.DataDirectory, System.IO.File.ReadAllText(dlg.FileName));
             Log.Write($"匯入設定:{n} 個檔案");
-            if (MessageBox.Show(this, $"已匯入 {n} 個設定檔,要現在重新啟動 Island 套用嗎?", "Island", MessageBoxButton.YesNo) == MessageBoxResult.Yes)
+            if (IslandDialog.Confirm(this, $"已匯入 {n} 個設定檔,要現在重新啟動 Island 套用嗎?", "重新啟動", "稍後"))
                 ((App)Application.Current).Restart();
         }
-        catch (System.IO.InvalidDataException ex) { MessageBox.Show(this, ex.Message, "Island"); }
-        catch (Exception ex) { MessageBox.Show(this, $"匯入失敗:{ex.Message}", "Island"); }
+        catch (System.IO.InvalidDataException ex) { IslandDialog.Show(this, ex.Message); }
+        catch (Exception ex) { IslandDialog.Show(this, $"匯入失敗:{ex.Message}"); }
     }
 
     // ── 共用小工具 ─────────────────────────────────────
@@ -586,7 +586,11 @@ public partial class SettingsWindow : Window
             grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
             grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
             grid.Children.Add(text);
-            if (control is FrameworkElement fe) fe.Margin = new Thickness(16, 0, 0, 0);
+            if (control is FrameworkElement fe)
+            {
+                fe.Margin = new Thickness(16, 0, 0, 0);
+                fe.VerticalAlignment = VerticalAlignment.Center;   // 說明文字很長時,按鈕不要被拉高
+            }
             Grid.SetColumn(control, 1);
             grid.Children.Add(control);
             content = grid;

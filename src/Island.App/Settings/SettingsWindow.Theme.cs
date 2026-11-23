@@ -323,7 +323,7 @@ public partial class SettingsWindow
         };
         if (dlg.ShowDialog(this) != true) return;
         try { File.WriteAllText(dlg.FileName, Theme.ToJson()); }
-        catch (Exception ex) { MessageBox.Show(this, $"匯出失敗:{ex.Message}", "Island"); }
+        catch (Exception ex) { IslandDialog.Show(this, $"匯出失敗:{ex.Message}"); }
     }
 
     private void ImportTheme()
@@ -338,7 +338,7 @@ public partial class SettingsWindow
         catch (Exception ex) { Log.Write($"匯入主題失敗:{ex.Message}"); }
         if (t is null)
         {
-            MessageBox.Show(this, "這個檔案不是 Island 的主題。", "Island");
+            IslandDialog.Show(this, "這個檔案不是 Island 的主題。");
             return;
         }
         _settings.CustomThemes.RemoveAll(x => string.Equals(x.Name, t.Name, StringComparison.Ordinal));

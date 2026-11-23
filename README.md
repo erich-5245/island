@@ -109,6 +109,8 @@ Shelf 收四種項目:
 
 **選色視窗**:主題和時鐘的「自訂」共用同一個深色選色視窗(`Island.Core.IslandColorPicker`),取代 Windows 舊式的「色彩」對話方塊:飽和度 / 亮度方塊、色相條、常用色(加上這次選過的)、色碼輸入(#RRGGBB 或 #RGB)、「原本 → 新的」對照(點原本的可以改回),Enter 確定、Esc 取消。
 
+**提示視窗**:匯出 / 匯入失敗、匯入後要不要重新啟動、圖片讀不出來等提示,都用同一個深色提示視窗(`Island.Core.IslandDialog`),不再跳出 Windows 白色的 MessageBox。
+
 設定視窗所有下拉選單改成深灰圓角樣式(清單裡目前選的項目用強調色加勾號)。
 
 主題存在 `settings.json` 的 `theme` / `customThemes`。時間的 12 / 24 小時制在設定 →「時間」。效能:只有「依時段變化」每 15 分鐘醒來一次,「跟著 Windows」只在 Windows 通知色彩改變時才讀登錄,其他模式不多花任何 CPU。

@@ -396,7 +396,7 @@ public partial class MainWindow : Window, IShellController
         if (_tabs.TryGetValue(module, out var tab))
         {
             if (tab.IsChecked != true) tab.IsChecked = true;
-            tab.BringIntoView();   // 分頁太多被捲到外面時,捲回看得到
+            if (IsExpanded) ScrollActiveTabIntoView();   // 分頁太多被捲到外面時,捲回看得到
         }
         if (IsExpanded) NotifyExpand(module, true);
     }
@@ -533,6 +533,23 @@ public partial class MainWindow : Window, IShellController
         Fade(ExpandedLayer, 1, Ms(200), Ms(90));
         _leaveTimer.Start();
         NotifyExpand(module, true);
+        // 面板剛變成看得見,版面排好後才捲得動:把目前的分頁捲回看得到的地方
+        Dispatcher.BeginInvoke(ScrollActiveTabIntoView, DispatcherPriority.Loaded);
+    }
+
+    private void ScrollActiveTabIntoView()
+    {
+        if (_active is null || !_tabs.TryGetValue(_active, out var tab) || !tab.IsVisible) return;
+        if (TabScroller.ExtentWidth <= TabScroller.ViewportWidth + 1)
+        {
+            TabScroller.ScrollToHorizontalOffset(0);
+            return;
+        }
+        var left = tab.TransformToAncestor(TabStrip).Transform(new Point(0, 0)).X;
+        double offset = TabScroller.HorizontalOffset;
+        if (left < offset) offset = left - 8;
+        else if (left + tab.ActualWidth > offset + TabScroller.ViewportWidth) offset = left + tab.ActualWidth - TabScroller.ViewportWidth + 8;
+        TabScroller.ScrollToHorizontalOffset(Math.Max(0, offset));
     }
 
     /// <summary>收起展開的面板:滑鼠還在島上 → 一排;否則回到沒事的狀態。</summary>
