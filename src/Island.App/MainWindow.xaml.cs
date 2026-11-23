@@ -43,7 +43,7 @@ public partial class MainWindow : Window, IShellController
     /// 熱區高度(DIP):只有螢幕最上緣一條細線,滑鼠推到頂端一定碰得到,
     /// 又幾乎不會擋到瀏覽器分頁等點擊。熱區到膠囊之間的縫由 IsCursorOverCapsule 的寬容範圍處理。
     /// </summary>
-    private const double HotZoneHeight = 3;
+    private const double HotZoneHeight = 4;
 
     private const int HotkeyId = 1;
     private const int EscHotkeyId = 2;
@@ -432,6 +432,7 @@ public partial class MainWindow : Window, IShellController
         _surface = target;
         _leaving = false;
         _hideTimer.Stop();
+        UpdateNotch();
         var size = target == Surface.Idle ? _collapsedSize : _peekSize;
 
         Capsule.BeginAnimation(OpacityProperty, null);
@@ -581,6 +582,7 @@ public partial class MainWindow : Window, IShellController
     private void ResetHidden()
     {
         CloseStrip(instant: true);
+        UpdateNotch();
         foreach (var (circle, slot) in new[] { (LeftCircle, LeftCircleSlot), (RightCircle, RightCircleSlot) })
         {
             circle.Tag = null;
@@ -601,7 +603,7 @@ public partial class MainWindow : Window, IShellController
         Capsule.CornerRadius = new CornerRadius(CollapsedRadius);
         SetSize(_collapsedSize);
         UpdateContent(instant: true);
-        UseBigWindow(false);
+        UseBigWindow(false, force: true);   // 看不見時才換大小(例如延伸列的預留空間改變了)
     }
 
     private void SetSize(Size size)
@@ -619,7 +621,7 @@ public partial class MainWindow : Window, IShellController
     private bool _bigWindow = true;   // 建構時先縮小
     private readonly DispatcherTimer _shrinkTimer;
 
-    private double CompactWindowWidth => Math.Max(_peekSize.Width + 2 * (_collapsedSize.Height + 6), _collapsedSize.Width) + 24 + 2 * _stripExtra;
+    private double CompactWindowWidth => Math.Max(_peekSize.Width + 2 * (_collapsedSize.Height + 6), _collapsedSize.Width) + 24 + 2 * StripReserve;
     private double CompactWindowHeight => _settings.TopOffset + _collapsedSize.Height + 16;
     private double BigWindowWidth => Math.Max(CompactWindowWidth, _expandedSize.Width * 1.08 + 24);
     private double BigWindowHeight => _settings.TopOffset + _expandedSize.Height * 1.08 + 24;
@@ -648,7 +650,7 @@ public partial class MainWindow : Window, IShellController
             circle.Width = circle.Height = _collapsedSize.Height;
             circle.CornerRadius = new CornerRadius(CollapsedRadius);
         }
-        HotZone.Width = _collapsedSize.Width;
+        HotZone.Width = _peekSize.Width;   // 和滑下來的島一樣寬,比較好叫出來
         HotZone.Height = HotZoneHeight;
         CollapsedLayer.Height = _collapsedSize.Height - 2;              // 扣掉 1px 邊框
         ExpandedLayer.Width = _expandedSize.Width - 2;                  // 固定為展開尺寸,放大時像揭開
@@ -1084,6 +1086,10 @@ public partial class MainWindow : Window, IShellController
         ToExpanded(at.Module, pin: true);
     }
 
+    /// <summary>小瀏海只在完全隱藏(而且設定打開)時出現。</summary>
+    private void UpdateNotch() =>
+        Notch.Visibility = _settings.ShowNotch && _surface == Surface.Hidden && !_leaving ? Visibility.Visible : Visibility.Collapsed;
+
     // ── 小圓延伸(例如捷徑:列出開著的視窗) ──────────────
     // 滑鼠停在小圓上 0.2 秒 → 向外(右小圓往右、左小圓往左)拉長;Width 增加多少、外側 Margin 就減多少,
     // 所以整排的佔位不變,長條不會被擠歪。視窗只有在延伸時才加寬,收起後縮回。
@@ -1092,7 +1098,27 @@ public partial class MainWindow : Window, IShellController
     private Border? _stripPending, _stripCircle;
     private FrameworkElement? _strip;
     private IIslandCompactStrip? _stripOwner;
-    private double _stripExtra, _stripTarget;
+    private double _stripTarget;
+
+    /// <summary>延伸列最多再長多寬(每一側)。</summary>
+    private const double MaxStripExtra = 300;
+
+    /// <summary>
+    /// 有可以延伸的小圓時,一排的視窗兩側先預留延伸的空間。
+    /// 不在延伸當下才改視窗大小:改大小和重畫不同步,整個島會抽一下。
+    /// </summary>
+    private double StripReserve
+    {
+        get
+        {
+            foreach (var m in _modules)
+            {
+                if (m is not IIslandCompactStrip s) continue;
+                try { if (s.HasStrip(0) || s.HasStrip(1)) return MaxStripExtra; } catch { }
+            }
+            return 0;
+        }
+    }
 
     private void OnCircleMouseEnter(object sender, MouseEventArgs e)
     {
@@ -1148,36 +1174,69 @@ public partial class MainWindow : Window, IShellController
         if (!ReferenceEquals(sender, _strip) || _stripCircle is null) return;
         var strip = (FrameworkElement)sender;
         double width = e.NewSize.Width + strip.Margin.Left + strip.Margin.Right + 2;   // + 邊框
-        double target = Math.Max(_collapsedSize.Height, Math.Round(width));
+        double target = Math.Clamp(Math.Round(width), _collapsedSize.Height, _collapsedSize.Height + MaxStripExtra);
         if (Math.Abs(target - _stripTarget) < 0.5) return;
         _stripTarget = target;
-        double extra = target - _collapsedSize.Height;
-        if (extra > _stripExtra && !_bigWindow)
-        {
-            _stripExtra = extra;   // 先把視窗加寬,動畫才不會被切掉
-            UseBigWindow(false, force: true);
-        }
         AnimateStrip(_stripCircle, target, instant: false);
+    }
+
+    /// <summary>
+    /// 小圓寬度的動畫:不直接動畫 Width / Margin(版面會各自四捨五入,中間的長條會跟著晃 1px),
+    /// 而是動畫一個代理數值,每一格取整數後同時設定 Width 和外側 Margin,整排的佔位永遠不變。
+    /// </summary>
+    private sealed class StripWidth : Animatable
+    {
+        public static readonly DependencyProperty ValueProperty = DependencyProperty.Register(
+            nameof(Value), typeof(double), typeof(StripWidth),
+            new PropertyMetadata(0.0, (d, e) => ((StripWidth)d).Changed?.Invoke((double)e.NewValue)));
+
+        public double Value
+        {
+            get => (double)GetValue(ValueProperty);
+            set => SetValue(ValueProperty, value);
+        }
+
+        public Action<double>? Changed;
+        protected override Freezable CreateInstanceCore() => new StripWidth();
+    }
+
+    private readonly Dictionary<Border, StripWidth> _stripWidths = [];
+
+    private StripWidth StripWidthOf(Border circle)
+    {
+        if (_stripWidths.TryGetValue(circle, out var w)) return w;
+        w = new StripWidth { Value = _collapsedSize.Height };
+        bool left = ReferenceEquals(circle, LeftCircle);
+        w.Changed = v =>
+        {
+            double width = Math.Max(_collapsedSize.Height, Math.Round(v));
+            double extra = width - _collapsedSize.Height;
+            circle.Width = width;
+            circle.Margin = left ? new Thickness(-extra, 0, 6, 0) : new Thickness(6, 0, -extra, 0);
+        };
+        _stripWidths[circle] = w;
+        return w;
     }
 
     private void AnimateStrip(Border circle, double width, bool instant)
     {
-        bool left = ReferenceEquals(circle, LeftCircle);
-        double extra = width - _collapsedSize.Height;
-        var margin = left ? new Thickness(-extra, 0, 6, 0) : new Thickness(6, 0, -extra, 0);
+        var proxy = StripWidthOf(circle);
         if (instant)
         {
-            circle.BeginAnimation(WidthProperty, null);
-            circle.BeginAnimation(MarginProperty, null);
-            circle.Width = width;
-            circle.Margin = margin;
+            proxy.BeginAnimation(StripWidth.ValueProperty, null);
+            proxy.Value = width;
+            proxy.Changed?.Invoke(width);   // 值沒變時也要把 Width / Margin 設回來
             return;
         }
-        var growing = width > circle.ActualWidth;
+        double from = proxy.Value;
+        bool growing = width > from;
         var duration = new Duration(Ms(growing ? 260 : 180));
         IEasingFunction ease = growing ? new BackEase { Amplitude = 0.2, EasingMode = EasingMode.EaseOut } : new CubicEase { EasingMode = EasingMode.EaseOut };
-        circle.BeginAnimation(WidthProperty, new DoubleAnimation(width, duration) { EasingFunction = ease });
-        circle.BeginAnimation(MarginProperty, new ThicknessAnimation(margin, duration) { EasingFunction = ease });
+        var anim = new DoubleAnimation(width, duration) { EasingFunction = ease, FillBehavior = FillBehavior.Stop };
+        anim.Completed += (_, _) => proxy.Value = width;
+        proxy.Value = from;
+        proxy.BeginAnimation(StripWidth.ValueProperty, anim);
+        proxy.Value = width;   // 動畫結束後的基底值
     }
 
     /// <summary>收起延伸列,小圓縮回原本大小;縮完再把視窗縮回。</summary>
@@ -1198,27 +1257,7 @@ public partial class MainWindow : Window, IShellController
         _stripTarget = 0;
 
         double size = _collapsedSize.Height;
-        if (instant)
-        {
-            AnimateStrip(circle, size, instant: true);
-            ShrinkStripWindow();
-            return;
-        }
-        AnimateStrip(circle, size, instant: false);
-        var done = new DispatcherTimer(DispatcherPriority.Background) { Interval = Ms(200) };
-        done.Tick += (_, _) =>
-        {
-            done.Stop();
-            if (_stripCircle is null) ShrinkStripWindow();
-        };
-        done.Start();
-    }
-
-    private void ShrinkStripWindow()
-    {
-        if (_stripExtra == 0) return;
-        _stripExtra = 0;
-        if (!_bigWindow) UseBigWindow(false, force: true);
+        AnimateStrip(circle, size, instant);
     }
 
     // ── 拖放:交給第一個願意接收的模組 ───────────────────
@@ -1463,6 +1502,7 @@ public partial class MainWindow : Window, IShellController
                 _ => _collapsedSize,
             });
         UseBigWindow(_bigWindow, force: true);
+        UpdateNotch();
         ApplyIdleMode();
         if (_settings.HideInFullscreen) _fullscreen?.Evaluate();
         else if (!IsVisible) OnFullscreenChanged(false);

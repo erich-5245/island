@@ -34,6 +34,9 @@ internal sealed class IslandSettings
     /// </summary>
     public bool HideWhenIdle { get; set; } = true;
 
+    /// <summary>隱藏時在螢幕上緣中間顯示一小段「瀏海」,提醒滑鼠往哪裡推。</summary>
+    public bool ShowNotch { get; set; }
+
     /// <summary>
     /// true = 換歌時膠囊短暫出現(約 3 秒)顯示封面 + 歌名,之後再隱藏。
     /// 右鍵選單「切歌時顯示」可切換。

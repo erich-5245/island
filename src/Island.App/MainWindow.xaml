@@ -82,6 +82,11 @@
         <Border x:Name="HotZone" Background="#01000000"
                 HorizontalAlignment="Center" VerticalAlignment="Top" />
 
+        <!-- 小瀏海(設定可開):隱藏時螢幕上緣中間留一小段,提醒島在這裡;滑鼠碰到一樣是熱區 -->
+        <Border x:Name="Notch" Width="64" Height="5" CornerRadius="0,0,3,3" IsHitTestVisible="False"
+                HorizontalAlignment="Center" VerticalAlignment="Top" Visibility="Collapsed"
+                Background="{DynamicResource CapsuleBrush}" />
+
         <!-- 左小圓 | 膠囊(長條)| 右小圓:滑鼠移過去且同時有多個即時狀態時,兩側出現小圓 -->
         <StackPanel x:Name="IslandRow" Orientation="Horizontal"
                     HorizontalAlignment="Center" VerticalAlignment="Top">

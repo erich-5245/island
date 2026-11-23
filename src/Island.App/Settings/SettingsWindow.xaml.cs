@@ -99,6 +99,8 @@ public partial class SettingsWindow : Window
             }));
         p.Children.Add(ToggleCard("閒置時隱藏", "平常完全隱藏,滑鼠移到螢幕上緣中間才出現。關閉後平常顯示只有時間的小膠囊。",
             _settings.HideWhenIdle, on => { _settings.HideWhenIdle = on; Save(); _main.ApplySettingsLive(); }));
+        p.Children.Add(ToggleCard("隱藏時顯示小瀏海", "島隱藏時,螢幕上緣中間留一小段黑色的瀏海,提醒滑鼠往哪裡推。",
+            _settings.ShowNotch, on => { _settings.ShowNotch = on; Save(); _main.ApplySettingsLive(); }));
         p.Children.Add(ToggleCard("全螢幕時隱藏", "看影片、玩遊戲、簡報全螢幕時自動隱藏。",
             _settings.HideInFullscreen, on => { _settings.HideInFullscreen = on; Save(); _main.ApplySettingsLive(); }));
         p.Children.Add(ToggleCard("切歌時顯示", "換歌時膠囊出現約 3 秒,顯示封面和歌名。",
