@@ -40,15 +40,48 @@
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="CheckBox">
-                    <Border x:Name="Track" Width="38" Height="21" CornerRadius="10.5" Background="#48484A">
-                        <Ellipse x:Name="Knob" Width="15" Height="15" Margin="3,0" Fill="White" HorizontalAlignment="Left" />
-                    </Border>
+                    <!-- 點一下時圓鈕滑過去、底色淡入(像 iOS 的開關) -->
+                    <Grid Width="38" Height="21">
+                        <Border CornerRadius="10.5" Background="#48484A" />
+                        <Border x:Name="OnTrack" CornerRadius="10.5" Background="{DynamicResource Island.Accent}" Opacity="0" />
+                        <Grid x:Name="Knob" Width="15" Height="15" Margin="3,0" HorizontalAlignment="Left">
+                            <Grid.RenderTransform>
+                                <TranslateTransform x:Name="KnobShift" X="0" />
+                            </Grid.RenderTransform>
+                            <Ellipse Fill="White" />
+                            <Ellipse x:Name="KnobOn" Fill="{DynamicResource Island.OnAccent}" Opacity="0" />
+                        </Grid>
+                    </Grid>
                     <ControlTemplate.Triggers>
+                        <!-- 狀態用 Setter(打開頁面時直接是對的位置,不會每個開關都滑一次) -->
                         <Trigger Property="IsChecked" Value="True">
-                            <Setter TargetName="Track" Property="Background" Value="{DynamicResource Island.Accent}" />
-                            <Setter TargetName="Knob" Property="Fill" Value="{DynamicResource Island.OnAccent}" />
                             <Setter TargetName="Knob" Property="HorizontalAlignment" Value="Right" />
+                            <Setter TargetName="OnTrack" Property="Opacity" Value="1" />
+                            <Setter TargetName="KnobOn" Property="Opacity" Value="1" />
                         </Trigger>
+                        <!-- 只有使用者切換時才播滑動:圓鈕已經換邊,從原本的位置滑過來 -->
+                        <EventTrigger RoutedEvent="ToggleButton.Checked">
+                            <BeginStoryboard>
+                                <Storyboard>
+                                    <DoubleAnimation Storyboard.TargetName="KnobShift" Storyboard.TargetProperty="X" From="-17" To="0" Duration="0:0:0.2">
+                                        <DoubleAnimation.EasingFunction><BackEase Amplitude="0.25" EasingMode="EaseOut" /></DoubleAnimation.EasingFunction>
+                                    </DoubleAnimation>
+                                    <DoubleAnimation Storyboard.TargetName="OnTrack" Storyboard.TargetProperty="Opacity" From="0" To="1" Duration="0:0:0.15" />
+                                    <DoubleAnimation Storyboard.TargetName="KnobOn" Storyboard.TargetProperty="Opacity" From="0" To="1" Duration="0:0:0.15" />
+                                </Storyboard>
+                            </BeginStoryboard>
+                        </EventTrigger>
+                        <EventTrigger RoutedEvent="ToggleButton.Unchecked">
+                            <BeginStoryboard>
+                                <Storyboard>
+                                    <DoubleAnimation Storyboard.TargetName="KnobShift" Storyboard.TargetProperty="X" From="17" To="0" Duration="0:0:0.2">
+                                        <DoubleAnimation.EasingFunction><BackEase Amplitude="0.25" EasingMode="EaseOut" /></DoubleAnimation.EasingFunction>
+                                    </DoubleAnimation>
+                                    <DoubleAnimation Storyboard.TargetName="OnTrack" Storyboard.TargetProperty="Opacity" From="1" To="0" Duration="0:0:0.15" />
+                                    <DoubleAnimation Storyboard.TargetName="KnobOn" Storyboard.TargetProperty="Opacity" From="1" To="0" Duration="0:0:0.15" />
+                                </Storyboard>
+                            </BeginStoryboard>
+                        </EventTrigger>
                         <Trigger Property="IsEnabled" Value="False">
                             <Setter Property="Opacity" Value="0.4" />
                         </Trigger>
