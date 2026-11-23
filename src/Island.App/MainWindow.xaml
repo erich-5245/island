@@ -147,6 +147,29 @@
 
                     <ContentControl x:Name="ExpandedSlot" Grid.Row="1"
                                     Margin="12,6,12,10" Focusable="False" />
+
+                    <!-- 右上角(分頁那一排):設定,不用再按右鍵選單 -->
+                    <Button x:Name="SettingsButton" Grid.Row="0"
+                            HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,8,10,0"
+                            ToolTip="設定" Cursor="Hand" Focusable="False"
+                            Click="OnSettingsButtonClick">
+                        <Button.Template>
+                            <ControlTemplate TargetType="Button">
+                                <Border x:Name="Bg" Width="22" Height="22" CornerRadius="11" Background="Transparent">
+                                    <TextBlock x:Name="Glyph" Text="&#xE713;"
+                                               FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="11"
+                                               Foreground="#7A7A7A"
+                                               HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                </Border>
+                                <ControlTemplate.Triggers>
+                                    <Trigger Property="IsMouseOver" Value="True">
+                                        <Setter TargetName="Bg" Property="Background" Value="#2A2A2A" />
+                                        <Setter TargetName="Glyph" Property="Foreground" Value="White" />
+                                    </Trigger>
+                                </ControlTemplate.Triggers>
+                            </ControlTemplate>
+                        </Button.Template>
+                    </Button>
                 </Grid>
             </Grid>
         </Border>

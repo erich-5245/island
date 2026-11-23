@@ -1196,6 +1196,14 @@ public partial class MainWindow : Window, IShellController
         _settingsWindow.Activate();
     }
 
+    /// <summary>展開畫面右下角的齒輪:打開設定,島收起來。</summary>
+    private void OnSettingsButtonClick(object sender, RoutedEventArgs e)
+    {
+        e.Handled = true;
+        OnSettingsClick(sender, e);
+        CollapseExpanded(force: true);
+    }
+
     /// <summary>設定視窗改了可以立即套用的項目(閒置隱藏、全螢幕隱藏、螢幕)後呼叫。</summary>
     internal void ApplySettingsLive()
     {
