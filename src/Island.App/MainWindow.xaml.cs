@@ -45,6 +45,9 @@ public partial class MainWindow : Window, IShellController
     /// </summary>
     private const double HotZoneHeight = 4;
 
+    /// <summary>熱區寬度 = 整排的寬度(兩側小圓也算),小圓上方也叫得出來 / 不會被當成離開。</summary>
+    private double HotZoneBaseWidth => _peekSize.Width + 2 * (_collapsedSize.Height + 6);
+
     private const int HotkeyId = 1;
     private const int EscHotkeyId = 2;
     /// <summary>Ctrl+Alt+1…9 的熱鍵 id = 100 + 數字。</summary>
@@ -650,7 +653,7 @@ public partial class MainWindow : Window, IShellController
             circle.Width = circle.Height = _collapsedSize.Height;
             circle.CornerRadius = new CornerRadius(CollapsedRadius);
         }
-        HotZone.Width = _peekSize.Width;   // 和滑下來的島一樣寬,比較好叫出來
+        HotZone.Width = HotZoneBaseWidth;   // 和整排(小圓 + 長條 + 小圓)一樣寬,比較好叫出來
         HotZone.Height = HotZoneHeight;
         CollapsedLayer.Height = _collapsedSize.Height - 2;              // 扣掉 1px 邊框
         ExpandedLayer.Width = _expandedSize.Width - 2;                  // 固定為展開尺寸,放大時像揭開
@@ -769,12 +772,13 @@ public partial class MainWindow : Window, IShellController
                || (RightCircle.IsVisible && IsCursorOver(RightCircle, pt));
     }
 
-    private static bool IsCursorOver(FrameworkElement element, POINT pt)
+    private bool IsCursorOver(FrameworkElement element, POINT pt)
     {
         if (PresentationSource.FromVisual(element) is null) return false;
         var p = element.PointFromScreen(new Point(pt.X, pt.Y));
         const double slack = 6;
-        return p.X >= -slack && p.Y >= -slack - 8   // 上方多留一點:膠囊上緣到螢幕頂端的縫隙
+        // 上方一路算到螢幕頂端:膠囊 / 小圓上緣和螢幕之間的縫隙也算在島上
+        return p.X >= -slack && p.Y >= -(_settings.TopOffset + slack + 8)
                && p.X <= element.ActualWidth + slack && p.Y <= element.ActualHeight + slack;
     }
 
@@ -838,7 +842,12 @@ public partial class MainWindow : Window, IShellController
     private void OnHideTimerTick(object? sender, EventArgs e)
     {
         _hideTimer.Stop();
-        if (_surface != Surface.Peek || IslandRoot.ContextMenu.IsOpen || IsCursorOverCapsule()) return;
+        if (_surface != Surface.Peek) return;
+        if (IslandRoot.ContextMenu.IsOpen || IsCursorOverCapsule())
+        {
+            _hideTimer.Start();   // 還在島上(例如小圓上方的空隙):稍後再確認,離開後才收起
+            return;
+        }
         if (_announced is not null) ShowSurface(Surface.Announce);   // 提示還沒結束,繼續顯示提示
         else ToRest();
     }
@@ -1213,6 +1222,7 @@ public partial class MainWindow : Window, IShellController
             double extra = width - _collapsedSize.Height;
             circle.Width = width;
             circle.Margin = left ? new Thickness(-extra, 0, 6, 0) : new Thickness(6, 0, -extra, 0);
+            HotZone.Width = HotZoneBaseWidth + 2 * extra;   // 延伸列上方也算在島上
         };
         _stripWidths[circle] = w;
         return w;
