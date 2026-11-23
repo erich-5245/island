@@ -90,9 +90,13 @@
                 VerticalAlignment="Top" Visibility="Collapsed" Opacity="0" Cursor="Hand"
                 Background="{DynamicResource CapsuleBrush}"
                 BorderBrush="{DynamicResource Island.CapsuleBorder}" BorderThickness="1"
-                MouseLeftButtonUp="OnCircleClick">
-            <ContentControl x:Name="LeftCircleSlot" Focusable="False" IsHitTestVisible="False"
-                            HorizontalAlignment="Center" VerticalAlignment="Center" />
+                MouseLeftButtonUp="OnCircleClick" MouseEnter="OnCircleMouseEnter" MouseLeave="OnCircleMouseLeave">
+            <Grid>
+                <ContentControl x:Name="LeftCircleSlot" Focusable="False" IsHitTestVisible="False"
+                                HorizontalAlignment="Center" VerticalAlignment="Center" />
+                <!-- 滑鼠停留時往外延伸的內容(例如開著的視窗);Canvas 讓內容量出自己真正的寬度 -->
+                <Canvas x:Name="LeftCircleStrip" ClipToBounds="True" Visibility="Collapsed" />
+            </Grid>
         </Border>
 
         <Border x:Name="Capsule"
@@ -178,9 +182,13 @@
                 VerticalAlignment="Top" Visibility="Collapsed" Opacity="0" Cursor="Hand"
                 Background="{DynamicResource CapsuleBrush}"
                 BorderBrush="{DynamicResource Island.CapsuleBorder}" BorderThickness="1"
-                MouseLeftButtonUp="OnCircleClick">
-            <ContentControl x:Name="RightCircleSlot" Focusable="False" IsHitTestVisible="False"
-                            HorizontalAlignment="Center" VerticalAlignment="Center" />
+                MouseLeftButtonUp="OnCircleClick" MouseEnter="OnCircleMouseEnter" MouseLeave="OnCircleMouseLeave">
+            <Grid>
+                <ContentControl x:Name="RightCircleSlot" Focusable="False" IsHitTestVisible="False"
+                                HorizontalAlignment="Center" VerticalAlignment="Center" />
+                <!-- 滑鼠停留時往外延伸的內容(例如開著的視窗);Canvas 讓內容量出自己真正的寬度 -->
+                <Canvas x:Name="RightCircleStrip" ClipToBounds="True" Visibility="Collapsed" />
+            </Grid>
         </Border>
 
         </StackPanel>

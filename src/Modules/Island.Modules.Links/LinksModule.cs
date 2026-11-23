@@ -34,7 +34,7 @@ public sealed class LinkItem
 /// 加入方式:設定頁從「開著的視窗」挑、瀏覽選檔、輸入網址,或在捷徑分頁開著時把捷徑 / 程式 / 資料夾拖到島上。
 /// 清單存在 %LOCALAPPDATA%\Island\modules\links\links.json。平常不耗資源。
 /// </summary>
-public sealed class LinksModule : IslandModuleBase, IIslandDropTarget, IIslandSettingsPage, IIslandCompact, IIslandNumberHotkeys
+public sealed class LinksModule : IslandModuleBase, IIslandDropTarget, IIslandSettingsPage, IIslandCompact, IIslandCompactStrip, IIslandNumberHotkeys
 {
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
@@ -56,7 +56,9 @@ public sealed class LinksModule : IslandModuleBase, IIslandDropTarget, IIslandSe
     protected override void OnInitialize()
     {
         _file = Path.Combine(Host.GetModuleDataDirectory(Id), "links.json");
+        _optionsFile = Path.Combine(Host.GetModuleDataDirectory(Id), "options.json");
         Load();
+        LoadOptions();
     }
 
     public override FrameworkElement CreateExpandedView() => _view ??= new LinksView(this);
@@ -94,6 +96,62 @@ public sealed class LinksModule : IslandModuleBase, IIslandDropTarget, IIslandSe
     {
         var items = CircleItems;
         if (index < items.Count) Open(items[index]);
+    }
+
+    // ── 第一個小圓延伸:列出開著的視窗(滑鼠停在小圓上) ──
+
+    private string _optionsFile = "";
+    private WindowStripView? _strip;
+
+    /// <summary>滑鼠停在第一個捷徑小圓上時,往外延伸列出開著的視窗。</summary>
+    public bool WindowStrip { get; private set; } = true;
+
+    public void SetWindowStrip(bool on)
+    {
+        WindowStrip = on;
+        try
+        {
+            Directory.CreateDirectory(Path.GetDirectoryName(_optionsFile)!);
+            File.WriteAllText(_optionsFile, JsonSerializer.Serialize(new LinksOptions { WindowStrip = on }, JsonOptions));
+        }
+        catch (Exception ex) { Host.Log($"捷徑:儲存選項失敗:{ex.Message}"); }
+    }
+
+    private void LoadOptions()
+    {
+        try
+        {
+            if (File.Exists(_optionsFile))
+                WindowStrip = JsonSerializer.Deserialize<LinksOptions>(File.ReadAllText(_optionsFile), JsonOptions)?.WindowStrip ?? true;
+        }
+        catch { WindowStrip = true; }
+    }
+
+    /// <summary>只有第一個小圓會延伸(兩個都拉長會擋到畫面)。</summary>
+    public bool HasStrip(int index) => WindowStrip && index == 0 && CircleItems.Count > 0;
+
+    public FrameworkElement? OpenStrip(int index, bool towardLeft, double height)
+    {
+        CloseStrip();
+        if (!HasStrip(index)) return null;
+        return _strip = new WindowStripView(this, CircleItems[0], towardLeft, height);
+    }
+
+    public void CloseStrip()
+    {
+        _strip?.Stop();
+        _strip = null;
+    }
+
+    /// <summary>切到某個開著的視窗(延伸列上點一格)。</summary>
+    public void SwitchTo(AppWindow window)
+    {
+        try
+        {
+            if (!WindowFinder.Activate(window.Handle)) Host.Log($"捷徑:切換到「{window.Title}」失敗");
+            Host.Collapse();
+        }
+        catch (Exception ex) { Host.Log($"捷徑:切換視窗失敗:{ex.Message}"); }
     }
 
     /// <summary>
@@ -377,4 +435,9 @@ public sealed class LinksModule : IslandModuleBase, IIslandDropTarget, IIslandSe
             Host.Log($"捷徑:儲存失敗:{ex.Message}");
         }
     }
+}
+
+internal sealed class LinksOptions
+{
+    public bool WindowStrip { get; set; } = true;
 }

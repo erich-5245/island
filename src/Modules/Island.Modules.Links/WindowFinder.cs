@@ -16,9 +16,9 @@ public sealed record AppWindow(IntPtr Handle, string Title, string ExePath, stri
 internal static class WindowFinder
 {
     /// <summary>依 Z 順序(最上面 = 最近用過)列出所有應用程式視窗。</summary>
-    public static List<AppWindow> List()
+    public static List<AppWindow> List(bool includeFolders = true)
     {
-        var folders = ExplorerFolders();
+        var folders = includeFolders ? ExplorerFolders() : [];
         var result = new List<AppWindow>();
         var title = new StringBuilder(512);
         EnumWindows((h, _) =>
@@ -128,6 +128,27 @@ internal static class WindowFinder
         return SetForegroundWindow(hwnd);
     }
 
+    /// <summary>請視窗自己關閉(和按右上角 X 一樣,程式可以問要不要存檔)。</summary>
+    public static void Close(IntPtr hwnd) => PostMessage(hwnd, WM_CLOSE, IntPtr.Zero, IntPtr.Zero);
+
+    public static IntPtr Foreground() => GetForegroundWindow();
+
+    /// <summary>視窗自己的圖示(Microsoft Store 程式共用同一個 exe 時用這個)。拿不到回傳 null。</summary>
+    public static System.Windows.Media.ImageSource? WindowIcon(IntPtr hwnd)
+    {
+        try
+        {
+            IntPtr icon = IntPtr.Zero;
+            if (SendMessageTimeout(hwnd, WM_GETICON, (IntPtr)ICON_BIG, IntPtr.Zero, SMTO_ABORTIFHUNG, 50, out var r) != IntPtr.Zero) icon = r;
+            if (icon == IntPtr.Zero) icon = GetClassLongPtr(hwnd, GCLP_HICON);
+            if (icon == IntPtr.Zero) return null;
+            var src = System.Windows.Interop.Imaging.CreateBitmapSourceFromHIcon(icon, System.Windows.Int32Rect.Empty, System.Windows.Media.Imaging.BitmapSizeOptions.FromEmptyOptions());
+            src.Freeze();
+            return src;   // 圖示是視窗的,不能 DestroyIcon
+        }
+        catch { return null; }
+    }
+
     public static bool SamePath(string a, string b) =>
         string.Equals(Path.GetFullPath(a).TrimEnd('\\'), Path.GetFullPath(b).TrimEnd('\\'), StringComparison.OrdinalIgnoreCase);
 
@@ -141,6 +162,12 @@ internal static class WindowFinder
     private const int SW_RESTORE = 9;
     private const byte VK_MENU = 0x12;
     private const uint KEYEVENTF_KEYUP = 2;
+    private const uint WM_CLOSE = 0x10, WM_GETICON = 0x7F, SMTO_ABORTIFHUNG = 2;
+    private const int ICON_BIG = 1, GCLP_HICON = -14;
+    [DllImport("user32.dll")] private static extern bool PostMessage(IntPtr h, uint msg, IntPtr w, IntPtr l);
+    [DllImport("user32.dll")] private static extern IntPtr GetForegroundWindow();
+    [DllImport("user32.dll")] private static extern IntPtr SendMessageTimeout(IntPtr h, uint msg, IntPtr w, IntPtr l, uint flags, uint timeout, out IntPtr result);
+    [DllImport("user32.dll", EntryPoint = "GetClassLongPtrW")] private static extern IntPtr GetClassLongPtr(IntPtr h, int index);
 
     private delegate bool EnumWindowsProc(IntPtr hWnd, IntPtr lParam);
     [DllImport("user32.dll")] private static extern bool EnumWindows(EnumWindowsProc f, IntPtr l);

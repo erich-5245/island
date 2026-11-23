@@ -237,6 +237,8 @@ public partial class MainWindow : Window, IShellController
     {
         if (sender is ContextMenu menu) _openMenus.Remove(menu);
         if (_openMenus.Count == 0) _menuOutsideClick.Stop();
+        // 延伸列上的「+N」選單關掉了,滑鼠也不在小圓上 → 收起延伸列
+        if (_openMenus.Count == 0 && _stripCircle is not null && GetCursorPos(out var pt) && !IsCursorOver(_stripCircle, pt)) CloseStrip();
     }
 
     /// <summary>關掉所有開著的右鍵選單(點到外面、島要隱藏時)。</summary>
@@ -578,6 +580,7 @@ public partial class MainWindow : Window, IShellController
     /// <summary>已經看不見了:把膠囊重設成收合狀態、位移歸零、視窗縮小,等下次滑入。</summary>
     private void ResetHidden()
     {
+        CloseStrip(instant: true);
         foreach (var (circle, slot) in new[] { (LeftCircle, LeftCircleSlot), (RightCircle, RightCircleSlot) })
         {
             circle.Tag = null;
@@ -616,7 +619,7 @@ public partial class MainWindow : Window, IShellController
     private bool _bigWindow = true;   // 建構時先縮小
     private readonly DispatcherTimer _shrinkTimer;
 
-    private double CompactWindowWidth => Math.Max(_peekSize.Width + 2 * (_collapsedSize.Height + 6), _collapsedSize.Width) + 24;
+    private double CompactWindowWidth => Math.Max(_peekSize.Width + 2 * (_collapsedSize.Height + 6), _collapsedSize.Width) + 24 + 2 * _stripExtra;
     private double CompactWindowHeight => _settings.TopOffset + _collapsedSize.Height + 16;
     private double BigWindowWidth => Math.Max(CompactWindowWidth, _expandedSize.Width * 1.08 + 24);
     private double BigWindowHeight => _settings.TopOffset + _expandedSize.Height * 1.08 + 24;
@@ -1030,6 +1033,7 @@ public partial class MainWindow : Window, IShellController
 
     private void ShowCircle(Border circle, ContentControl slot, CircleRef? module, bool reserve)
     {
+        if (ReferenceEquals(circle, _stripCircle) && !Equals(circle.Tag, module)) CloseStrip(instant: true);
         if (module is null)
         {
             var empty = reserve ? Visibility.Hidden : Visibility.Collapsed;
@@ -1078,6 +1082,143 @@ public partial class MainWindow : Window, IShellController
             return;
         }
         ToExpanded(at.Module, pin: true);
+    }
+
+    // ── 小圓延伸(例如捷徑:列出開著的視窗) ──────────────
+    // 滑鼠停在小圓上 0.2 秒 → 向外(右小圓往右、左小圓往左)拉長;Width 增加多少、外側 Margin 就減多少,
+    // 所以整排的佔位不變,長條不會被擠歪。視窗只有在延伸時才加寬,收起後縮回。
+
+    private DispatcherTimer? _stripTimer;
+    private Border? _stripPending, _stripCircle;
+    private FrameworkElement? _strip;
+    private IIslandCompactStrip? _stripOwner;
+    private double _stripExtra, _stripTarget;
+
+    private void OnCircleMouseEnter(object sender, MouseEventArgs e)
+    {
+        if (sender is not Border { Tag: CircleRef at } circle || ReferenceEquals(circle, _stripCircle)) return;
+        if (_surface != Surface.Peek || at.Module is not IIslandCompactStrip owner) return;
+        bool has;
+        try { has = owner.HasStrip(at.Index); } catch { has = false; }
+        if (!has) return;
+        _stripPending = circle;
+        if (_stripTimer is null)
+        {
+            _stripTimer = new DispatcherTimer(DispatcherPriority.Background) { Interval = TimeSpan.FromMilliseconds(200) };
+            _stripTimer.Tick += (_, _) => OpenStrip();
+        }
+        _stripTimer.Stop();
+        _stripTimer.Start();
+    }
+
+    private void OnCircleMouseLeave(object sender, MouseEventArgs e)
+    {
+        if (ReferenceEquals(sender, _stripPending)) { _stripTimer?.Stop(); _stripPending = null; }
+        if (ReferenceEquals(sender, _stripCircle) && _openMenus.Count == 0) CloseStrip();
+    }
+
+    private (Canvas Host, ContentControl Slot) StripParts(Border circle) =>
+        ReferenceEquals(circle, LeftCircle) ? (LeftCircleStrip, LeftCircleSlot) : (RightCircleStrip, RightCircleSlot);
+
+    private void OpenStrip()
+    {
+        _stripTimer?.Stop();
+        var circle = _stripPending;
+        _stripPending = null;
+        if (circle is not { Tag: CircleRef at } || at.Module is not IIslandCompactStrip owner) return;
+        if (_surface != Surface.Peek || !circle.IsMouseOver) return;
+        CloseStrip(instant: true);
+
+        bool left = ReferenceEquals(circle, LeftCircle);
+        var strip = SafeCreate(at.Module, () => owner.OpenStrip(at.Index, left, _collapsedSize.Height - 2));
+        if (strip is null) return;
+        var (host, slot) = StripParts(circle);
+        _stripCircle = circle;
+        _strip = strip;
+        _stripOwner = owner;
+        host.Children.Add(strip);
+        if (left) Canvas.SetRight(strip, 0); else Canvas.SetLeft(strip, 0);
+        host.Visibility = Visibility.Visible;
+        slot.Visibility = Visibility.Hidden;   // 延伸列的第一格就是原本的圖示
+        strip.SizeChanged += OnStripSizeChanged;
+    }
+
+    private void OnStripSizeChanged(object sender, SizeChangedEventArgs e)
+    {
+        if (!ReferenceEquals(sender, _strip) || _stripCircle is null) return;
+        var strip = (FrameworkElement)sender;
+        double width = e.NewSize.Width + strip.Margin.Left + strip.Margin.Right + 2;   // + 邊框
+        double target = Math.Max(_collapsedSize.Height, Math.Round(width));
+        if (Math.Abs(target - _stripTarget) < 0.5) return;
+        _stripTarget = target;
+        double extra = target - _collapsedSize.Height;
+        if (extra > _stripExtra && !_bigWindow)
+        {
+            _stripExtra = extra;   // 先把視窗加寬,動畫才不會被切掉
+            UseBigWindow(false, force: true);
+        }
+        AnimateStrip(_stripCircle, target, instant: false);
+    }
+
+    private void AnimateStrip(Border circle, double width, bool instant)
+    {
+        bool left = ReferenceEquals(circle, LeftCircle);
+        double extra = width - _collapsedSize.Height;
+        var margin = left ? new Thickness(-extra, 0, 6, 0) : new Thickness(6, 0, -extra, 0);
+        if (instant)
+        {
+            circle.BeginAnimation(WidthProperty, null);
+            circle.BeginAnimation(MarginProperty, null);
+            circle.Width = width;
+            circle.Margin = margin;
+            return;
+        }
+        var growing = width > circle.ActualWidth;
+        var duration = new Duration(Ms(growing ? 260 : 180));
+        IEasingFunction ease = growing ? new BackEase { Amplitude = 0.2, EasingMode = EasingMode.EaseOut } : new CubicEase { EasingMode = EasingMode.EaseOut };
+        circle.BeginAnimation(WidthProperty, new DoubleAnimation(width, duration) { EasingFunction = ease });
+        circle.BeginAnimation(MarginProperty, new ThicknessAnimation(margin, duration) { EasingFunction = ease });
+    }
+
+    /// <summary>收起延伸列,小圓縮回原本大小;縮完再把視窗縮回。</summary>
+    private void CloseStrip(bool instant = false)
+    {
+        _stripTimer?.Stop();
+        _stripPending = null;
+        if (_stripCircle is not { } circle) return;
+        try { _stripOwner?.CloseStrip(); } catch (Exception ex) { Log.Write($"小圓延伸收起失敗:{ex.Message}"); }
+        if (_strip is not null) _strip.SizeChanged -= OnStripSizeChanged;
+        var (host, slot) = StripParts(circle);
+        host.Children.Clear();
+        host.Visibility = Visibility.Collapsed;
+        slot.Visibility = Visibility.Visible;
+        _stripCircle = null;
+        _strip = null;
+        _stripOwner = null;
+        _stripTarget = 0;
+
+        double size = _collapsedSize.Height;
+        if (instant)
+        {
+            AnimateStrip(circle, size, instant: true);
+            ShrinkStripWindow();
+            return;
+        }
+        AnimateStrip(circle, size, instant: false);
+        var done = new DispatcherTimer(DispatcherPriority.Background) { Interval = Ms(200) };
+        done.Tick += (_, _) =>
+        {
+            done.Stop();
+            if (_stripCircle is null) ShrinkStripWindow();
+        };
+        done.Start();
+    }
+
+    private void ShrinkStripWindow()
+    {
+        if (_stripExtra == 0) return;
+        _stripExtra = 0;
+        if (!_bigWindow) UseBigWindow(false, force: true);
     }
 
     // ── 拖放:交給第一個願意接收的模組 ───────────────────

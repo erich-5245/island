@@ -32,6 +32,22 @@ internal sealed class LinksSettingsView : StackPanel
         currentCard.Child = cp;
         Children.Add(currentCard);
 
+        // 第一個小圓延伸成視窗列
+        var stripCard = Card();
+        var sp = new DockPanel();
+        var stripToggle = new CheckBox { IsChecked = module.WindowStrip, VerticalAlignment = VerticalAlignment.Center };
+        stripToggle.SetResourceReference(StyleProperty, IslandTheme.SettingsToggle);
+        stripToggle.Checked += (_, _) => module.SetWindowStrip(true);
+        stripToggle.Unchecked += (_, _) => module.SetWindowStrip(false);
+        DockPanel.SetDock(stripToggle, Dock.Right);
+        sp.Children.Add(stripToggle);
+        var stripText = new StackPanel { Margin = new Thickness(0, 0, 12, 0) };
+        stripText.Children.Add(Title("小圓延伸出開著的視窗"));
+        stripText.Children.Add(Caption("滑鼠停在第一個捷徑小圓上,它會往外延伸,列出目前開著的程式。點一下切過去(同一個程式有好幾個視窗時,連點會輪流切換),按滑鼠中鍵關閉。"));
+        sp.Children.Add(stripText);
+        stripCard.Child = sp;
+        Children.Add(stripCard);
+
         // 從開著的視窗加入
         var winCard = Card();
         var wp = new StackPanel();

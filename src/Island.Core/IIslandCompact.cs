@@ -58,3 +58,23 @@ public interface IIslandNumberHotkeys
     /// <summary>number = 1…9。</summary>
     void OnNumberHotkey(int number);
 }
+
+/// <summary>
+/// 選用介面:滑鼠停在小圓上時,小圓往外延伸成一條(例如捷徑:列出目前開著的視窗)。
+/// 外殼負責延遲、動畫、寬度與收起;模組只提供內容。內容的寬度改變時(視窗開了 / 關了)外殼會跟著調整。
+/// 內容裡的按鈕要把 MouseLeftButtonUp 標成 Handled,否則會當成點小圓本身。
+/// </summary>
+public interface IIslandCompactStrip
+{
+    /// <summary>第 index 個小圓要不要延伸。</summary>
+    bool HasStrip(int index);
+
+    /// <summary>
+    /// 建立延伸內容(高度 = 小圓高度)。towardLeft = 小圓在長條左邊、往左長:內容要反過來排,
+    /// 讓原本的圖示留在靠長條那一端。回傳 null = 這次不延伸。
+    /// </summary>
+    FrameworkElement? OpenStrip(int index, bool towardLeft, double height);
+
+    /// <summary>收起了:停止監看、釋放資源。</summary>
+    void CloseStrip();
+}
