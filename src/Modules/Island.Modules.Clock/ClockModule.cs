@@ -14,9 +14,11 @@ namespace Island.Modules.Clock;
 /// 每分鐘醒來一次更新文字,其餘時間完全不佔 CPU。
 /// 系統時間被修改或從睡眠喚醒時立即校正。
 /// </summary>
-public sealed class ClockModule : IslandModuleBase, IIslandPeekProvider
+public sealed class ClockModule : IslandModuleBase, IIslandPeekProvider, IIslandSettingsPage
 {
-    private const string Format = "HH:mm";
+    /// <summary>24 小時制 "14:05";12 小時制 "2:05"(展開畫面另外顯示上午 / 下午)。</summary>
+    private string Format => _options.Use24Hour ? "HH:mm" : "h:mm";
+    private ClockOptions _options = new();
 
     /// <summary>過整分後再多等一點點,確保醒來時分鐘已經進位。</summary>
     private static readonly TimeSpan Slack = TimeSpan.FromMilliseconds(30);
@@ -32,6 +34,7 @@ public sealed class ClockModule : IslandModuleBase, IIslandPeekProvider
 
     protected override void OnInitialize()
     {
+        _options = ClockOptions.Load(Host.GetModuleDataDirectory(Id));
         _timer = new DispatcherTimer(DispatcherPriority.Normal, Host.Dispatcher);
         _timer.Tick += (_, _) => Refresh();
         SystemEvents.TimeChanged += OnTimeChanged;
@@ -104,8 +107,49 @@ public sealed class ClockModule : IslandModuleBase, IIslandPeekProvider
         var text = now.ToString(Format, CultureInfo.InvariantCulture);
         if (_collapsedText is not null && _collapsedText.Text != text) _collapsedText.Text = text;
         if (_expandedTime is not null) _expandedTime.Text = text;
+        if (_expandedTime is not null && !_options.Use24Hour) _expandedTime.Text = $"{AmPm(now)} {text}";
         if (_expandedDate is not null) _expandedDate.Text = now.ToString("M月d日 dddd", CultureInfo.CurrentCulture);
-        if (_peekDate is not null) _peekDate.Text = now.ToString("M/d ddd", CultureInfo.CurrentCulture);
+        if (_peekDate is not null) _peekDate.Text = _options.Use24Hour
+            ? now.ToString("M/d ddd", CultureInfo.CurrentCulture)
+            : $"{now.ToString("M/d ddd", CultureInfo.CurrentCulture)} {AmPm(now)}";
+    }
+
+    /// <summary>上午 / 下午(固定中文,不受系統語言影響)。</summary>
+    internal static string AmPm(DateTime t) => t.Hour < 12 ? "上午" : "下午";
+
+    // ── 設定頁 ──
+    public string SettingsTitle => "時間";
+
+    public FrameworkElement CreateSettingsView()
+    {
+        var card = new Border();
+        card.SetResourceReference(FrameworkElement.StyleProperty, IslandTheme.SettingsCard);
+        var grid = new Grid();
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        var text = new StackPanel();
+        var title = new TextBlock { Text = "24 小時制" };
+        title.SetResourceReference(FrameworkElement.StyleProperty, IslandTheme.SettingsTitleText);
+        var caption = new TextBlock { Text = "關閉後改成 12 小時制(2:05),滑鼠移過去的日期旁邊和展開畫面會顯示上午 / 下午。" };
+        caption.SetResourceReference(FrameworkElement.StyleProperty, IslandTheme.SettingsCaptionText);
+        text.Children.Add(title);
+        text.Children.Add(caption);
+        grid.Children.Add(text);
+        var toggle = new CheckBox { IsChecked = _options.Use24Hour, Margin = new Thickness(16, 0, 0, 0) };
+        toggle.SetResourceReference(FrameworkElement.StyleProperty, IslandTheme.SettingsToggle);
+        toggle.Checked += (_, _) => Set24(true);
+        toggle.Unchecked += (_, _) => Set24(false);
+        Grid.SetColumn(toggle, 1);
+        grid.Children.Add(toggle);
+        card.Child = grid;
+        return card;
+    }
+
+    private void Set24(bool on)
+    {
+        _options.Use24Hour = on;
+        _options.Save(Host.GetModuleDataDirectory(Id));
+        UpdateText(DateTime.Now);
     }
 
     private void OnTimeChanged(object? sender, EventArgs e) => Host.Dispatcher.BeginInvoke(Refresh);
@@ -121,5 +165,39 @@ public sealed class ClockModule : IslandModuleBase, IIslandPeekProvider
         SystemEvents.TimeChanged -= OnTimeChanged;
         SystemEvents.PowerModeChanged -= OnPowerModeChanged;
         base.Dispose();
+    }
+}
+
+/// <summary>%LOCALAPPDATA%\Island\modules\clock\options.json</summary>
+internal sealed class ClockOptions
+{
+    public bool Use24Hour { get; set; } = true;
+
+    private static readonly System.Text.Json.JsonSerializerOptions JsonOptions = new()
+    {
+        WriteIndented = true,
+        PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase,
+    };
+
+    public static ClockOptions Load(string dir)
+    {
+        try
+        {
+            var file = System.IO.Path.Combine(dir, "options.json");
+            if (System.IO.File.Exists(file))
+                return System.Text.Json.JsonSerializer.Deserialize<ClockOptions>(System.IO.File.ReadAllText(file), JsonOptions) ?? new();
+        }
+        catch { }
+        return new();
+    }
+
+    public void Save(string dir)
+    {
+        try
+        {
+            System.IO.Directory.CreateDirectory(dir);
+            System.IO.File.WriteAllText(System.IO.Path.Combine(dir, "options.json"), System.Text.Json.JsonSerializer.Serialize(this, JsonOptions));
+        }
+        catch { }
     }
 }

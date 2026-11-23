@@ -20,11 +20,17 @@ public partial class MainWindow : Window, IShellController
     private Size _collapsedSize;
     private Size _peekSize;
     private Size _expandedSize;
-    private const double ExpandedRadius = 24;
+    /// <summary>圓角跟著主題(圓角程度)。</summary>
+    private double ExpandedRadius => _settings.Theme.ExpandedRadius;
+    private double CollapsedRadius => _settings.Theme.CollapsedRadius(_collapsedSize.Height);
 
-    private static readonly Duration PeekDuration = new(TimeSpan.FromMilliseconds(200));
-    private static readonly Duration ExpandDuration = new(TimeSpan.FromMilliseconds(340));
-    private static readonly Duration CollapseDuration = new(TimeSpan.FromMilliseconds(260));
+    /// <summary>動畫時間倍率(主題的「動畫速度」)。</summary>
+    private static double s_animScale = 1;
+    private static TimeSpan Ms(double ms) => TimeSpan.FromMilliseconds(ms * s_animScale);
+
+    private static Duration PeekDuration => new(Ms(200));
+    private static Duration ExpandDuration => new(Ms(340));
+    private static Duration CollapseDuration => new(Ms(260));
 
     /// <summary>展開時每隔多久確認一次滑鼠是否還在島上(只在展開期間運作)。</summary>
     private static readonly TimeSpan LeaveCheckInterval = TimeSpan.FromMilliseconds(350);
@@ -83,11 +89,12 @@ public partial class MainWindow : Window, IShellController
         ApplyLayout();
         Capsule.Width = _collapsedSize.Width;
         Capsule.Height = _collapsedSize.Height;
-        Capsule.CornerRadius = new CornerRadius(_collapsedSize.Height / 2);
+        Capsule.CornerRadius = new CornerRadius(CollapsedRadius);
         // 視窗大小跟著狀態:平常只放得下一排 + 小圓,展開時才放大(見 UseBigWindow)
         _shrinkTimer = new DispatcherTimer(DispatcherPriority.Background) { Interval = TimeSpan.FromMilliseconds(450) };
         _shrinkTimer.Tick += OnShrinkTimerTick;
         UseBigWindow(false);
+        ApplyTheme(colors: false);   // 顏色已在 App 啟動時由 AccentTheme.Install 放好
 
         // 初始狀態:閒置時隱藏 → Hidden;否則 Idle(小膠囊)
         _surface = IdleVisible ? Surface.Idle : Surface.Hidden;
@@ -501,12 +508,12 @@ public partial class MainWindow : Window, IShellController
 
         ApplyCapsuleChrome();
         UpdateCircles();
-        Fade(Capsule, 1, TimeSpan.FromMilliseconds(120));
+        Fade(Capsule, 1, Ms(120));
         ExpandedLayer.Visibility = Visibility.Visible;
         Capsule.CornerRadius = new CornerRadius(ExpandedRadius);
         AnimateSize(_expandedSize, ExpandDuration, new BackEase { Amplitude = 0.2, EasingMode = EasingMode.EaseOut });
-        Fade(CollapsedLayer, 0, TimeSpan.FromMilliseconds(90));
-        Fade(ExpandedLayer, 1, TimeSpan.FromMilliseconds(200), TimeSpan.FromMilliseconds(90));
+        Fade(CollapsedLayer, 0, Ms(90));
+        Fade(ExpandedLayer, 1, Ms(200), Ms(90));
         _leaveTimer.Start();
         NotifyExpand(module, true);
     }
@@ -540,21 +547,21 @@ public partial class MainWindow : Window, IShellController
     private void ShrinkPanel(Size to)
     {
         ApplyCapsuleChrome();
-        Capsule.CornerRadius = new CornerRadius(_collapsedSize.Height / 2);
+        Capsule.CornerRadius = new CornerRadius(CollapsedRadius);
         AnimateSize(to, CollapseDuration, new QuarticEase { EasingMode = EasingMode.EaseOut });
-        Fade(ExpandedLayer, 0, TimeSpan.FromMilliseconds(110), completed: () =>
+        Fade(ExpandedLayer, 0, Ms(110), completed: () =>
         {
             if (!IsExpanded) ExpandedLayer.Visibility = Visibility.Collapsed;
         });
         UpdateContent();
-        Fade(CollapsedLayer, 1, TimeSpan.FromMilliseconds(160), TimeSpan.FromMilliseconds(110));
+        Fade(CollapsedLayer, 1, Ms(160), Ms(110));
     }
 
     // ── 滑出 / 滑入 ──────────────────────────────────────
 
     private readonly TranslateTransform _slide = new();
-    private static readonly Duration SlideOutDuration = new(TimeSpan.FromMilliseconds(230));
-    private static readonly Duration SlideInDuration = new(TimeSpan.FromMilliseconds(320));
+    private static Duration SlideOutDuration => new(Ms(230));
+    private static Duration SlideInDuration => new(Ms(320));
 
     /// <summary>剛好完全離開螢幕上緣的位移(依目前高度)。</summary>
     private double OffscreenY => -(_settings.TopOffset + Math.Max(Capsule.ActualHeight, IslandRow.ActualHeight) + 6);
@@ -583,7 +590,7 @@ public partial class MainWindow : Window, IShellController
         ExpandedLayer.Opacity = 0;
         ExpandedLayer.Visibility = Visibility.Collapsed;
         ApplyCapsuleChrome();
-        Capsule.CornerRadius = new CornerRadius(_collapsedSize.Height / 2);
+        Capsule.CornerRadius = new CornerRadius(CollapsedRadius);
         SetSize(_collapsedSize);
         UpdateContent(instant: true);
         UseBigWindow(false);
@@ -631,7 +638,7 @@ public partial class MainWindow : Window, IShellController
         foreach (var circle in new[] { LeftCircle, RightCircle })
         {
             circle.Width = circle.Height = _collapsedSize.Height;
-            circle.CornerRadius = new CornerRadius(_collapsedSize.Height / 2);
+            circle.CornerRadius = new CornerRadius(CollapsedRadius);
         }
         HotZone.Width = _collapsedSize.Width;
         HotZone.Height = HotZoneHeight;
@@ -903,11 +910,11 @@ public partial class MainWindow : Window, IShellController
         }
         else
         {
-            var d = TimeSpan.FromMilliseconds(160);
+            var d = Ms(160);
             Fade(ActivitySlot, showActivity ? 1 : 0, d);
             Fade(CenterSlot, showActivity ? 0 : 1, d);
             Fade(BadgeStrip, showActivity ? 0 : 1, d);
-            Fade(LeftSlot, showDate ? 1 : 0, d, showDate ? TimeSpan.FromMilliseconds(60) : null);
+            Fade(LeftSlot, showDate ? 1 : 0, d, showDate ? Ms(60) : null);
         }
         UpdateCircles();
     }
@@ -982,7 +989,7 @@ public partial class MainWindow : Window, IShellController
                 return;
             }
             circle.Tag = null;
-            var fade = new DoubleAnimation(0, new Duration(TimeSpan.FromMilliseconds(120)));
+            var fade = new DoubleAnimation(0, new Duration(Ms(120)));
             fade.Completed += (_, _) =>
             {
                 if (circle.Tag is not null) return;
@@ -1003,9 +1010,9 @@ public partial class MainWindow : Window, IShellController
         if (!ReferenceEquals(slot.Content, view)) slot.Content = view;
         circle.Visibility = Visibility.Visible;
         if (appearing)
-            circle.BeginAnimation(OpacityProperty, new DoubleAnimation(1, new Duration(TimeSpan.FromMilliseconds(180)))
+            circle.BeginAnimation(OpacityProperty, new DoubleAnimation(1, new Duration(Ms(180)))
             {
-                BeginTime = TimeSpan.FromMilliseconds(60),
+                BeginTime = Ms(60),
             });
     }
 
@@ -1194,6 +1201,48 @@ public partial class MainWindow : Window, IShellController
         _settingsWindow.Closed += (_, _) => _settingsWindow = null;
         _settingsWindow.Show();
         _settingsWindow.Activate();
+    }
+
+    // ── 主題 ─────────────────────────────────────────────
+
+    private FontFamily? _defaultFont;
+    private DispatcherTimer? _previewTimer;
+
+    /// <summary>套用外觀主題:強調色 / 底色(AccentTheme)、圓角、邊框、字型、動畫速度。</summary>
+    internal void ApplyTheme(bool colors = true)
+    {
+        var t = _settings.Theme;
+        s_animScale = t.SpeedFactor;
+        if (colors) AccentTheme.Configure(t);
+
+        var border = new Thickness(t.ShowBorder ? 1 : 0);
+        Capsule.BorderThickness = border;
+        LeftCircle.BorderThickness = border;
+        RightCircle.BorderThickness = border;
+
+        _defaultFont ??= FontFamily;
+        FontFamily = string.IsNullOrWhiteSpace(t.FontFamily) ? _defaultFont : new FontFamily(t.FontFamily);
+
+        Capsule.CornerRadius = new CornerRadius(IsExpanded ? ExpandedRadius : CollapsedRadius);
+        foreach (var circle in new[] { LeftCircle, RightCircle }) circle.CornerRadius = new CornerRadius(CollapsedRadius);
+    }
+
+    /// <summary>設定頁「在島上預覽」:讓島出現 3 秒(滑鼠不在島上就自己收回)。</summary>
+    internal void PreviewTheme()
+    {
+        if (IsExpanded || !IsVisible) return;
+        ShowSurface(Surface.Peek);
+        _previewTimer ??= new DispatcherTimer(DispatcherPriority.Background) { Interval = TimeSpan.FromSeconds(3) };
+        _previewTimer.Tick -= OnPreviewTimerTick;
+        _previewTimer.Tick += OnPreviewTimerTick;
+        _previewTimer.Stop();
+        _previewTimer.Start();
+    }
+
+    private void OnPreviewTimerTick(object? sender, EventArgs e)
+    {
+        _previewTimer!.Stop();
+        if (_surface == Surface.Peek && !IsCursorOverCapsule()) ToRest();
     }
 
     /// <summary>展開畫面右下角的齒輪:打開設定,島收起來。</summary>

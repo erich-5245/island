@@ -67,6 +67,12 @@ internal sealed class IslandSettings
     /// <summary>要停用的模組 Id。</summary>
     public List<string> DisabledModules { get; set; } = [];
 
+    /// <summary>外觀主題(強調色、膠囊底色、外型、字型、動畫速度)。</summary>
+    public ThemeSettings Theme { get; set; } = new();
+
+    /// <summary>使用者自己存的主題(設定 → 主題 →「存成我的主題」)。</summary>
+    public List<ThemeSettings> CustomThemes { get; set; } = [];
+
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
         WriteIndented = true,
@@ -76,6 +82,7 @@ internal sealed class IslandSettings
         DefaultIgnoreCondition = JsonIgnoreCondition.Never,
         // 讓 "Ctrl+Alt+I" 這類字串照原樣寫入,方便手動修改(預設會把 + 寫成 +)
         Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
+        Converters = { new JsonStringEnumConverter(JsonNamingPolicy.CamelCase) },
     };
 
     public static IslandSettings Load()
@@ -116,6 +123,11 @@ internal sealed class IslandSettings
         PeekWidth = Math.Clamp(PeekWidth, CollapsedWidth, 900);
         ExpandedWidth = Math.Clamp(ExpandedWidth, CollapsedWidth, 1200);
         ExpandedHeight = Math.Clamp(ExpandedHeight, CollapsedHeight, 800);
+        Theme ??= new ThemeSettings();
+        Theme.Normalize();
+        CustomThemes ??= [];
+        CustomThemes.RemoveAll(t => t is null);
+        foreach (var t in CustomThemes) t.Normalize();
     }
 
     public void Save()

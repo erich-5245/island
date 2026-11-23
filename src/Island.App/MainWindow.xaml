@@ -1,4 +1,4 @@
-﻿<Window x:Class="Island.App.MainWindow"
+<Window x:Class="Island.App.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Island"
@@ -88,7 +88,7 @@
 
         <Border x:Name="LeftCircle" Width="36" Height="36" CornerRadius="18" Margin="0,0,6,0"
                 VerticalAlignment="Top" Visibility="Collapsed" Opacity="0" Cursor="Hand"
-                Background="{StaticResource CapsuleBrush}"
+                Background="{DynamicResource CapsuleBrush}"
                 BorderBrush="{DynamicResource Island.CapsuleBorder}" BorderThickness="1"
                 MouseLeftButtonUp="OnCircleClick">
             <ContentControl x:Name="LeftCircleSlot" Focusable="False" IsHitTestVisible="False"
@@ -99,7 +99,7 @@
                 Width="200" Height="36"
                 HorizontalAlignment="Center" VerticalAlignment="Top"
                 CornerRadius="18"
-                Background="{StaticResource CapsuleBrush}"
+                Background="{DynamicResource CapsuleBrush}"
                 BorderBrush="{DynamicResource Island.CapsuleBorder}" BorderThickness="1"
                 MouseLeftButtonUp="OnCapsuleClick">
 
@@ -176,7 +176,7 @@
 
         <Border x:Name="RightCircle" Width="36" Height="36" CornerRadius="18" Margin="6,0,0,0"
                 VerticalAlignment="Top" Visibility="Collapsed" Opacity="0" Cursor="Hand"
-                Background="{StaticResource CapsuleBrush}"
+                Background="{DynamicResource CapsuleBrush}"
                 BorderBrush="{DynamicResource Island.CapsuleBorder}" BorderThickness="1"
                 MouseLeftButtonUp="OnCircleClick">
             <ContentControl x:Name="RightCircleSlot" Focusable="False" IsHitTestVisible="False"

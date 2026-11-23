@@ -31,6 +31,7 @@ public partial class SettingsWindow : Window
 
         _pages.Add(("一般", BuildGeneral));
         _pages.Add(("外觀與位置", BuildDisplay));
+        _pages.Add(("主題", BuildTheme));
         _pages.Add(("即時狀態", BuildLive));
         _pages.Add(("模組", BuildModules));
         foreach (var m in modules.OfType<IIslandSettingsPage>())

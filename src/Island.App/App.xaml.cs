@@ -39,7 +39,7 @@ public partial class App : Application
         if (settings.SoftwareRendering)
             RenderOptions.ProcessRenderMode = RenderMode.SoftwareOnly;
 
-        AccentTheme.Install(Resources);
+        AccentTheme.Install(Resources, settings.Theme);
 
         var host = new IslandHost(Dispatcher);
         _modules = ModuleLoader.LoadAll(settings, host);
