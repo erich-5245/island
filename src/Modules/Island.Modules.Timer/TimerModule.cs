@@ -75,6 +75,10 @@ public sealed class TimerModule : IslandModuleBase, IIslandActivity, IIslandExpa
     public FrameworkElement CreateActivityView() => _activityView ??= new TimerActivityView(this);
 
     public bool IsCompactRelevant => IsActivityActive;
+
+    /// <summary>點小圓「直接執行」(設定 → 即時狀態可以選;預設是打開分頁)。</summary>
+    public string? CompactActionLabel => "暫停 / 繼續";
+    public void RunCompactAction(int index) { StartPause(); }
     public FrameworkElement CreateCompactView() => _ring ??= new TimerRingView(this);
     public override FrameworkElement CreateExpandedView() => _view ??= new TimerView(this);
 

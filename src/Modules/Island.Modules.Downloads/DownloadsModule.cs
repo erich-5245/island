@@ -42,6 +42,10 @@ public sealed class DownloadsModule : IslandModuleBase, IIslandActivity, IIsland
     public bool IsActivityActive => _active.Count > 0 || JustCompleted is not null;
     public bool IsCompactRelevant => _active.Count > 0;
 
+    /// <summary>點小圓「直接執行」(設定 → 即時狀態可以選;預設是打開分頁)。</summary>
+    public string? CompactActionLabel => "打開下載資料夾";
+    public void RunCompactAction(int index) { if (Folder is not null) { try { System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(Folder) { UseShellExecute = true }); } catch (Exception ex) { Host.Log($"小圓動作失敗:{ex.Message}"); } } }
+
     /// <summary>目前下載中的暫存檔(依開始時間)。</summary>
     public IReadOnlyList<string> Active => _active.OrderBy(kv => kv.Value).Select(kv => kv.Key).ToList();
 

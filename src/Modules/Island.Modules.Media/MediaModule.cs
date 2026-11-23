@@ -87,6 +87,10 @@ public sealed class MediaModule : IslandModuleBase, IIslandActivity, IIslandExpa
     public FrameworkElement CreateActivityView() => _activityView ??= new MediaActivityView(Current);
 
     public bool IsCompactRelevant => _activityActive;
+
+    /// <summary>點小圓「直接執行」(設定 → 即時狀態可以選;預設是打開分頁)。</summary>
+    public string? CompactActionLabel => "播放 / 暫停";
+    public void RunCompactAction(int index) { TogglePlayPause(); }
     public FrameworkElement CreateCompactView() => _compactView ??= new MediaCompactView(Current);
 
     public override FrameworkElement CreateExpandedView() => _view ??= new MediaView(this);

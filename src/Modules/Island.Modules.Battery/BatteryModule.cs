@@ -40,6 +40,10 @@ public sealed class BatteryModule : IslandModuleBase, IIslandActivity, IIslandCo
     public bool IsActivityActive => _active;
     public bool IsCompactRelevant => _hasBattery && ((OnAc && Percent < 100) || IsLow);
 
+    /// <summary>點小圓「直接執行」(設定 → 即時狀態可以選;預設是打開分頁)。</summary>
+    public string? CompactActionLabel => "打開電源設定";
+    public void RunCompactAction(int index) { try { System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("ms-settings:powersleep") { UseShellExecute = true }); } catch (Exception ex) { Host.Log($"小圓動作失敗:{ex.Message}"); } }
+
     protected override void OnInitialize()
     {
         var s = Read();

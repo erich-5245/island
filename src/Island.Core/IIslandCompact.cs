@@ -3,9 +3,9 @@ using System.Windows;
 namespace Island.Core;
 
 /// <summary>
-/// 選用介面:模組可以縮成一個「小圓」顯示在長條兩側(像 iPhone 動態島同時顯示多個即時動態)。
+/// 選用介面:模組可以縮成「小圓」顯示在長條兩側(像 iPhone 動態島同時顯示多個即時動態)。
 /// 滑鼠移到島上時,外殼依設定的優先順序(liveOrder)選出中間長條要顯示的活動,
-/// 其餘「目前有東西可看」的模組最多兩個,放在左右小圓。
+/// 其餘「目前有東西可看」的模組最多兩個小圓,放在左右。
 /// 相關度改變時請觸發 <see cref="IIslandActivity.ActivityChanged"/> 或 <see cref="IIslandModule.BadgeChanged"/>,
 /// 外殼會重新排列。
 /// </summary>
@@ -23,9 +23,38 @@ public interface IIslandCompact
     /// </summary>
     bool ShowWithoutActivity => false;
 
+    // ── 一個模組可以有多個小圓(例如兩個捷徑) ──
+
+    /// <summary>最多幾個小圓。</summary>
+    int CompactCount => 1;
+
+    /// <summary>第 index 個小圓現在是否要顯示。</summary>
+    bool IsCompactRelevantAt(int index) => index == 0 && IsCompactRelevant;
+
+    /// <summary>第 index 個小圓的畫面(外殼對每個 index 只呼叫一次)。</summary>
+    FrameworkElement? CreateCompactView(int index) => index == 0 ? CreateCompactView() : null;
+
+    // ── 點小圓 ──
+
     /// <summary>
-    /// 小圓被點擊。回傳 true = 模組自己處理了(例如捷徑小圓直接切到視窗),外殼不展開;
-    /// 預設 false:外殼展開並打開這個模組的分頁。
+    /// 點小圓時「直接執行」的動作名稱(例如「播放 / 暫停」),顯示在設定裡讓使用者選。
+    /// null = 沒有直接動作,點小圓只會打開分頁。
     /// </summary>
-    bool OnCompactClick() => false;
+    string? CompactActionLabel => null;
+
+    /// <summary>使用者沒有設定時,點小圓預設是否直接執行(捷徑是 true,其他是 false = 打開分頁)。</summary>
+    bool CompactActionByDefault => false;
+
+    /// <summary>執行第 index 個小圓的直接動作。</summary>
+    void RunCompactAction(int index) { }
+}
+
+/// <summary>
+/// 選用介面:接收 Ctrl+Alt+1…9 全域快捷鍵(例如捷徑模組:第 n 個捷徑)。
+/// 外殼在設定開啟時註冊,只有一個模組會收到。
+/// </summary>
+public interface IIslandNumberHotkeys
+{
+    /// <summary>number = 1…9。</summary>
+    void OnNumberHotkey(int number);
 }

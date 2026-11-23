@@ -47,6 +47,9 @@ public partial class MainWindow : Window, IShellController
 
     private const int HotkeyId = 1;
     private const int EscHotkeyId = 2;
+    /// <summary>Ctrl+Alt+1…9 的熱鍵 id = 100 + 數字。</summary>
+    private const int NumberHotkeyBase = 100;
+    private bool _numberHotkeysRegistered;
     private bool _escRegistered;
 
     private static readonly Brush DragHighlightBrush = Freeze(new SolidColorBrush(Color.FromArgb(0x66, 0xFF, 0xFF, 0xFF)));
@@ -136,6 +139,7 @@ public partial class MainWindow : Window, IShellController
         Reposition("啟動");
 
         ApplyHotkey();
+        ApplyNumberHotkeys();
         _fullscreen = new FullscreenWatcher(_hwnd, Dispatcher, () => _monitor, OnFullscreenChanged);
         _topmost.ForegroundChanged += () => { if (_settings.HideInFullscreen) _fullscreen.Schedule(); };
         Loaded += (_, _) => Reposition("載入完成");
@@ -158,6 +162,7 @@ public partial class MainWindow : Window, IShellController
 
             case GlobalHotkey.WM_HOTKEY:
                 if (wParam.ToInt32() == HotkeyId) OnHotkey();
+                else if (wParam.ToInt32() is >= NumberHotkeyBase + 1 and <= NumberHotkeyBase + 9) OnNumberHotkey(wParam.ToInt32() - NumberHotkeyBase);
                 else if (wParam.ToInt32() == EscHotkeyId && IsExpanded) CollapseExpanded(force: true);
                 handled = true;
                 break;
@@ -664,6 +669,30 @@ public partial class MainWindow : Window, IShellController
     }
 
     /// <summary>快捷鍵:收著 → 固定展開(Esc 或再按一次收起);展開中 → 收起。</summary>
+    /// <summary>Ctrl+Alt+1…9:交給實作 IIslandNumberHotkeys 的模組(捷徑)。設定可以關掉。</summary>
+    internal void ApplyNumberHotkeys()
+    {
+        if (_hwnd == IntPtr.Zero) return;
+        if (_numberHotkeysRegistered)
+        {
+            for (int n = 1; n <= 9; n++) GlobalHotkey.Unregister(_hwnd, NumberHotkeyBase + n);
+            _numberHotkeysRegistered = false;
+        }
+        if (!_settings.NumberHotkeys || !_modules.OfType<IIslandNumberHotkeys>().Any()) return;
+        var failed = new List<int>();
+        for (int n = 1; n <= 9; n++)
+            if (!GlobalHotkey.Register(_hwnd, NumberHotkeyBase + n, $"Ctrl+Alt+D{n}")) failed.Add(n);
+        _numberHotkeysRegistered = true;
+        Log.Write(failed.Count == 0 ? "快捷鍵:Ctrl+Alt+1…9(捷徑)" : $"快捷鍵:Ctrl+Alt+1…9,其中 {string.Join(",", failed)} 被其他程式佔用");
+    }
+
+    private void OnNumberHotkey(int n)
+    {
+        var target = _modules.OfType<IIslandNumberHotkeys>().FirstOrDefault();
+        try { target?.OnNumberHotkey(n); }
+        catch (Exception ex) { Log.Write($"Ctrl+Alt+{n} 失敗:{ex.Message}"); }
+    }
+
     private void OnHotkey()
     {
         if (!IsVisible) return;   // 全螢幕隱藏中
@@ -928,7 +957,10 @@ public partial class MainWindow : Window, IShellController
 
     // ── 左右小圓(多個即時狀態) ───────────────────────────
 
-    private readonly Dictionary<IIslandModule, FrameworkElement?> _compactViews = [];
+    /// <summary>一個小圓 = 某個模組的第 Index 個小圓(捷徑可以有兩個)。</summary>
+    private sealed record CircleRef(IIslandModule Module, int Index);
+
+    private readonly Dictionary<(IIslandModule, int), FrameworkElement?> _compactViews = [];
 
     /// <summary>
     /// 只在 Peek、沒有提示、而且長條正在顯示某個活動時出現:
@@ -937,7 +969,7 @@ public partial class MainWindow : Window, IShellController
     private void UpdateCircles()
     {
         var pill = _surface == Surface.Peek && _announced is null ? CurrentActivity : null;
-        var picks = new List<IIslandModule>();
+        var picks = new List<CircleRef>();
         // 有活動:其他有東西可看的模組放小圓;沒有活動(日期 / 時間那一排):只放「沒有活動也顯示」的(例如捷徑)
         bool idleRow = pill is null && _surface == Surface.Peek && _announced is null;
         if (pill is not null || idleRow)
@@ -948,17 +980,23 @@ public partial class MainWindow : Window, IShellController
                 if (ReferenceEquals(m, pill) || m is not IIslandCompact c) continue;
                 if (idleRow && !c.ShowWithoutActivity) continue;
                 if (_settings.LiveHidden.Contains(m.Id, StringComparer.OrdinalIgnoreCase)) continue;
-                bool relevant;
-                try { relevant = c.IsCompactRelevant; } catch { relevant = false; }
-                if (!relevant) continue;
-                if (CompactView(m) is null) continue;
-                picks.Add(m);
+                int count;
+                try { count = Math.Clamp(c.CompactCount, 1, 2); } catch { count = 1; }
+                for (int i = 0; i < count && picks.Count < 2; i++)
+                {
+                    bool relevant;
+                    try { relevant = c.IsCompactRelevantAt(i); } catch { relevant = false; }
+                    if (!relevant) continue;
+                    var at = new CircleRef(m, i);
+                    if (CompactView(at) is null) continue;
+                    picks.Add(at);
+                }
             }
         }
 
         var (left, right) = picks.Count switch
         {
-            0 => ((IIslandModule?)null, (IIslandModule?)null),
+            0 => ((CircleRef?)null, (CircleRef?)null),
             1 => (null, picks[0]),
             _ => (picks[0], picks[1]),
         };
@@ -968,17 +1006,17 @@ public partial class MainWindow : Window, IShellController
         ShowCircle(RightCircle, RightCircleSlot, right, reserve);
     }
 
-    private FrameworkElement? CompactView(IIslandModule m)
+    private FrameworkElement? CompactView(CircleRef at)
     {
-        if (!_compactViews.TryGetValue(m, out var view))
+        if (!_compactViews.TryGetValue((at.Module, at.Index), out var view))
         {
-            view = SafeCreate(m, ((IIslandCompact)m).CreateCompactView);
-            _compactViews[m] = view;
+            view = SafeCreate(at.Module, () => ((IIslandCompact)at.Module).CreateCompactView(at.Index));
+            _compactViews[(at.Module, at.Index)] = view;
         }
         return view;
     }
 
-    private void ShowCircle(Border circle, ContentControl slot, IIslandModule? module, bool reserve)
+    private void ShowCircle(Border circle, ContentControl slot, CircleRef? module, bool reserve)
     {
         if (module is null)
         {
@@ -1019,14 +1057,15 @@ public partial class MainWindow : Window, IShellController
     private void OnCircleClick(object sender, MouseButtonEventArgs e)
     {
         e.Handled = true;
-        if (sender is not Border { Tag: IIslandModule module }) return;
-        bool handled = false;
-        if (module is IIslandCompact compact)
+        if (sender is not Border { Tag: CircleRef at }) return;
+        // 點小圓:使用者設定(或模組預設)為「直接執行」→ 執行模組的動作;否則打開分頁
+        if (at.Module is IIslandCompact compact && CircleActions.UseAction(_settings.CircleActions, at.Module.Id, compact))
         {
-            try { handled = compact.OnCompactClick(); }
-            catch (Exception ex) { Log.Write($"模組 {module.Id} 小圓點擊失敗:{ex.Message}"); }
+            try { compact.RunCompactAction(at.Index); }
+            catch (Exception ex) { Log.Write($"模組 {at.Module.Id} 小圓動作失敗:{ex.Message}"); }
+            return;
         }
-        if (!handled) ToExpanded(module, pin: true);
+        ToExpanded(at.Module, pin: true);
     }
 
     // ── 拖放:交給第一個願意接收的模組 ───────────────────

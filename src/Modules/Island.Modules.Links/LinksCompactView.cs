@@ -6,16 +6,18 @@ using System.Windows.Media;
 namespace Island.Modules.Links;
 
 /// <summary>
-/// 捷徑小圓:顯示「一個」捷徑的圖示(設定裡標星號的那個,沒標就用第一個)。
-/// 點小圓直接切到 / 打開那個視窗(LinksModule.OnCompactClick)。清單改變時才重畫,平常不耗資源。
+/// 捷徑小圓:第 index 個標星號的捷徑圖示(都沒標就用第一個,最多兩個小圓)。
+/// 點小圓直接切到 / 打開那個視窗(LinksModule.RunCompactAction)。清單改變時才重畫,平常不耗資源。
 /// </summary>
 internal sealed class LinksCompactView : Grid
 {
     private readonly LinksModule _module;
+    private readonly int _index;
 
-    public LinksCompactView(LinksModule module)
+    public LinksCompactView(LinksModule module, int index)
     {
         _module = module;
+        _index = index;
         Width = 30;
         Height = 30;
         Background = Brushes.Transparent;
@@ -28,7 +30,8 @@ internal sealed class LinksCompactView : Grid
     internal void Rebuild()
     {
         Children.Clear();
-        var item = _module.CircleItem;
+        var items = _module.CircleItems;
+        var item = _index < items.Count ? items[_index] : null;
         ToolTip = item is null ? null : $"切到 {item.Name}";
         if (item?.Icon is { } icon)
         {

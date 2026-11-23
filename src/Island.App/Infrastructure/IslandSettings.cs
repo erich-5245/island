@@ -67,6 +67,12 @@ internal sealed class IslandSettings
     /// <summary>要停用的模組 Id。</summary>
     public List<string> DisabledModules { get; set; } = [];
 
+    /// <summary>點小圓的動作:模組 Id → "tab"(打開分頁)/ "action"(直接執行)。沒有的照模組預設。</summary>
+    public Dictionary<string, string> CircleActions { get; set; } = [];
+
+    /// <summary>Ctrl+Alt+1…9 直接切到第 1…9 個捷徑。</summary>
+    public bool NumberHotkeys { get; set; } = true;
+
     /// <summary>外觀主題(強調色、膠囊底色、外型、字型、動畫速度)。</summary>
     public ThemeSettings Theme { get; set; } = new();
 
@@ -123,6 +129,7 @@ internal sealed class IslandSettings
         PeekWidth = Math.Clamp(PeekWidth, CollapsedWidth, 900);
         ExpandedWidth = Math.Clamp(ExpandedWidth, CollapsedWidth, 1200);
         ExpandedHeight = Math.Clamp(ExpandedHeight, CollapsedHeight, 800);
+        CircleActions ??= [];
         Theme ??= new ThemeSettings();
         Theme.Normalize();
         CustomThemes ??= [];

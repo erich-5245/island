@@ -132,6 +132,10 @@ public sealed class ShelfModule : IslandModuleBase, IIslandDropTarget, IIslandEx
 
     public bool IsCompactRelevant => Items.Count > 0;
 
+    /// <summary>點小圓「直接執行」(設定 → 即時狀態可以選;預設是打開分頁)。</summary>
+    public string? CompactActionLabel => "貼上剪貼簿";
+    public void RunCompactAction(int index) { Paste(); }
+
     /// <summary>小圓:檔案圖示 + 右上角數量。</summary>
     public FrameworkElement CreateCompactView()
     {

@@ -96,6 +96,8 @@ public partial class SettingsWindow : Window
         p.Children.Add(ToggleCard("音量亮度提示", "調音量或亮度時顯示長條。",
             _settings.ShowOsd, on => { _settings.ShowOsd = on; Save(); }));
         p.Children.Add(HotkeyCard());
+        p.Children.Add(ToggleCard("Ctrl+Alt+1…9 切換捷徑", "不用打開島,按 Ctrl+Alt+數字直接切到第幾個捷徑(順序在設定 →「捷徑」調整)。",
+            _settings.NumberHotkeys, on => { _settings.NumberHotkeys = on; Save(); _main.ApplyNumberHotkeys(); }));
         return p;
     }
 
@@ -193,6 +195,22 @@ public partial class SettingsWindow : Window
             var down = SmallButton("\uE70D", "往後", index < order.Count - 1, () => Move(order, index, +1));
             controls.Children.Add(up);
             controls.Children.Add(down);
+            if (module is IIslandCompact compact && !string.IsNullOrEmpty(compact.CompactActionLabel))
+            {
+                // 點小圓:打開分頁 / 直接執行
+                var action = new ComboBox { Width = 150, Margin = new Thickness(16, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center, ToolTip = "點小圓時" };
+                action.Items.Add(new ComboBoxItem { Content = "點了打開分頁", Tag = CircleActions.Tab });
+                action.Items.Add(new ComboBoxItem { Content = "點了" + compact.CompactActionLabel, Tag = CircleActions.Action });
+                action.SelectedIndex = CircleActions.UseAction(_settings.CircleActions, id, compact) ? 1 : 0;
+                action.SelectionChanged += (_, _) =>
+                {
+                    if (action.SelectedItem is not ComboBoxItem { Tag: string choice }) return;
+                    foreach (var key in _settings.CircleActions.Keys.Where(k => Same(k, id)).ToList()) _settings.CircleActions.Remove(key);
+                    _settings.CircleActions[id] = choice;
+                    Save();
+                };
+                controls.Children.Add(action);
+            }
             if (module is IIslandCompact)
             {
                 controls.Children.Add(new TextBlock

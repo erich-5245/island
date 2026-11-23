@@ -34,7 +34,7 @@ public sealed class LinkItem
 /// 加入方式:設定頁從「開著的視窗」挑、瀏覽選檔、輸入網址,或在捷徑分頁開著時把捷徑 / 程式 / 資料夾拖到島上。
 /// 清單存在 %LOCALAPPDATA%\Island\modules\links\links.json。平常不耗資源。
 /// </summary>
-public sealed class LinksModule : IslandModuleBase, IIslandDropTarget, IIslandSettingsPage, IIslandCompact
+public sealed class LinksModule : IslandModuleBase, IIslandDropTarget, IIslandSettingsPage, IIslandCompact, IIslandNumberHotkeys
 {
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
@@ -62,32 +62,78 @@ public sealed class LinksModule : IslandModuleBase, IIslandDropTarget, IIslandSe
     public override FrameworkElement CreateExpandedView() => _view ??= new LinksView(this);
     public FrameworkElement CreateSettingsView() => new LinksSettingsView(this);
 
-    // ── 小圓:代表「一個」捷徑,點一下直接切到 / 打開它;其他捷徑還是展開島在捷徑分頁點 ──
-    private LinksCompactView? _compact;
+    // ── 小圓:每個代表「一個」捷徑,點一下直接切到 / 打開它;其他捷徑還是展開島在捷徑分頁點 ──
+    public const int MaxCircles = 2;
+    private readonly LinksCompactView?[] _compacts = new LinksCompactView?[MaxCircles];
 
-    /// <summary>小圓代表的捷徑:設定裡標了星號的那個;都沒標就用第一個。</summary>
-    public LinkItem? CircleItem => Items.FirstOrDefault(i => i.Circle) ?? Items.FirstOrDefault();
-
-    public bool IsCompactRelevant => CircleItem is not null;
-    public bool ShowWithoutActivity => true;
-    public FrameworkElement CreateCompactView() => _compact ??= new LinksCompactView(this);
-
-    public bool OnCompactClick()
+    /// <summary>小圓代表的捷徑:設定裡標了星號的(最多兩個,依清單順序);都沒標就用第一個。</summary>
+    public IReadOnlyList<LinkItem> CircleItems
     {
-        if (CircleItem is { } item) Open(item);
-        return true;
+        get
+        {
+            var starred = Items.Where(i => i.Circle).Take(MaxCircles).ToList();
+            if (starred.Count > 0) return starred;
+            return Items.Count > 0 ? [Items[0]] : [];
+        }
     }
 
+    /// <summary>第一個小圓的捷徑(相容舊的呼叫)。</summary>
+    public LinkItem? CircleItem => CircleItems.FirstOrDefault();
+
+    public bool IsCompactRelevant => CircleItems.Count > 0;
+    public bool ShowWithoutActivity => true;
+    public int CompactCount => MaxCircles;
+    public bool IsCompactRelevantAt(int index) => index < CircleItems.Count;
+    public FrameworkElement CreateCompactView() => CreateCompactView(0);
+    public FrameworkElement CreateCompactView(int index) => _compacts[index] ??= new LinksCompactView(this, index);
+
+    public string? CompactActionLabel => "切到那個視窗";
+    public bool CompactActionByDefault => true;
+
+    public void RunCompactAction(int index)
+    {
+        var items = CircleItems;
+        if (index < items.Count) Open(items[index]);
+    }
+
+    /// <summary>
+    /// 星號開 / 關。已經有兩個星號時再標一個,最早標的那個會被取消(依清單順序的第一個)。
+    /// </summary>
+    public void ToggleCircle(LinkItem item)
+    {
+        if (item.Circle) item.Circle = false;
+        else
+        {
+            var starred = Items.Where(i => i.Circle).ToList();
+            if (starred.Count >= MaxCircles) starred[0].Circle = false;
+            item.Circle = true;
+        }
+        Save();
+        RefreshCircles();
+    }
+
+    /// <summary>只把這一個設成小圓(其他取消)。</summary>
     public void SetCircle(LinkItem item)
     {
         foreach (var i in Items) i.Circle = ReferenceEquals(i, item);
         Save();
-        _compact?.Rebuild();
+        RefreshCircles();
+    }
+
+    private void RefreshCircles()
+    {
+        foreach (var c in _compacts) c?.Rebuild();
         CircleChanged?.Invoke(this, EventArgs.Empty);
     }
 
     /// <summary>小圓改成別的捷徑(設定頁用來更新星號)。</summary>
     public event EventHandler? CircleChanged;
+
+    /// <summary>Ctrl+Alt+1…9:第 n 個捷徑。</summary>
+    public void OnNumberHotkey(int number)
+    {
+        if (number >= 1 && number <= Items.Count) Open(Items[number - 1]);
+    }
 
     // ── 開啟 / 切換 ─────────────────────────────────────
 

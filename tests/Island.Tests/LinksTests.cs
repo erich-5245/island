@@ -43,5 +43,42 @@ public sealed class LinksCircleTests : IDisposable
         Assert.Equal(a.Target, again.CircleItem?.Target);
     }
 
+    [Fact]
+    public void Stars_AtMostTwo_OldestDropped()
+    {
+        var links = NewLinks();
+        var a = links.AddUrl("https://a.example.com")!;
+        var b = links.AddUrl("https://b.example.com")!;
+        var c = links.AddUrl("https://c.example.com")!;
+        var compact = (IIslandCompact)links;
+        Assert.Equal(2, compact.CompactCount);
+        Assert.True(compact.IsCompactRelevantAt(0));
+        Assert.False(compact.IsCompactRelevantAt(1));      // 沒標星號:只有第一個
+
+        links.ToggleCircle(b);
+        links.ToggleCircle(c);
+        Assert.Equal(new[] { b, c }, links.CircleItems);
+        Assert.True(compact.IsCompactRelevantAt(1));
+
+        links.ToggleCircle(a);                             // 第三個:最早的(清單順序第一個 b)被取消
+        Assert.Equal(new[] { a, c }, links.CircleItems);
+
+        links.ToggleCircle(a);                             // 再按一次取消
+        Assert.Equal(new[] { c }, links.CircleItems);
+        links.ToggleCircle(c);
+        Assert.Equal(new[] { a }, links.CircleItems);      // 都沒星號 → 回到第一個
+    }
+
+    [Fact]
+    public void LinksCircle_DefaultsToDirectAction()
+    {
+        var links = NewLinks();
+        var compact = (IIslandCompact)links;
+        Assert.True(compact.CompactActionByDefault);
+        Assert.False(string.IsNullOrEmpty(compact.CompactActionLabel));
+        links.OnNumberHotkey(5);                           // 超出範圍:什麼都不做、不會丟例外
+        links.OnNumberHotkey(0);
+    }
+
     public void Dispose() => _host.Dispose();
 }

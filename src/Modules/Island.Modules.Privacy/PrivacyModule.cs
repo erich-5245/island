@@ -39,6 +39,10 @@ public sealed class PrivacyModule : IslandModuleBase, IIslandActivity, IIslandCo
     public bool IsActivityActive => MicApps.Count > 0 || CamApps.Count > 0;
     public bool IsCompactRelevant => IsActivityActive;
 
+    /// <summary>點小圓「直接執行」(設定 → 即時狀態可以選;預設是打開分頁)。</summary>
+    public string? CompactActionLabel => "打開隱私權設定";
+    public void RunCompactAction(int index) { try { System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("ms-settings:privacy-microphone") { UseShellExecute = true }); } catch (Exception ex) { Host.Log($"小圓動作失敗:{ex.Message}"); } }
+
     protected override void OnInitialize()
     {
         _debounce = new DispatcherTimer(DispatcherPriority.Background, Host.Dispatcher) { Interval = TimeSpan.FromMilliseconds(300) };

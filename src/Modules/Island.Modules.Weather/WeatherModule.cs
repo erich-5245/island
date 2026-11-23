@@ -61,6 +61,10 @@ public sealed class WeatherModule : IslandModuleBase, IIslandActivity, IIslandEx
 
     public bool IsCompactRelevant => Current is not null;
 
+    /// <summary>點小圓「直接執行」(設定 → 即時狀態可以選;預設是打開分頁)。</summary>
+    public string? CompactActionLabel => "打開天氣網站";
+    public void RunCompactAction(int index) { try { System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("https://www.google.com/search?q=" + Uri.EscapeDataString(Location.Name + " 天氣")) { UseShellExecute = true }); } catch (Exception ex) { Host.Log($"小圓動作失敗:{ex.Message}"); } }
+
     /// <summary>小圓:符號 + 溫度,例如「☾16°」。</summary>
     public FrameworkElement CreateCompactView()
     {
