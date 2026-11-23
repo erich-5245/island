@@ -1,4 +1,4 @@
-using System.IO;
+﻿using System.IO;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
@@ -21,7 +21,7 @@ internal sealed class LinksSettingsView : StackPanel
     {
         _module = module;
 
-        Children.Add(Caption("點島上的捷徑:程式已經開著就切到它的視窗(最小化的會還原),沒開就幫你打開。也可以在「捷徑」分頁開著時,把程式、捷徑或資料夾直接拖到島上。"));
+        Children.Add(Caption("點島上的捷徑:程式已經開著就切到它的視窗(最小化的會還原),沒開就幫你打開。也可以在「捷徑」分頁開著時,把程式、捷徑或資料夾直接拖到島上。\n標星號的捷徑會變成小圓:滑鼠移到島上就看得到,點一下直接切過去。其他捷徑展開島在「捷徑」分頁點。"));
         Children.Add(new Border { Height = 10 });
 
         // 目前的捷徑
@@ -84,6 +84,7 @@ internal sealed class LinksSettingsView : StackPanel
         Children.Add(moreCard);
 
         module.Items.CollectionChanged += (_, _) => BuildCurrent();
+        module.CircleChanged += (_, _) => BuildCurrent();
         BuildCurrent();
         BuildWindows();
     }
@@ -98,11 +99,16 @@ internal sealed class LinksSettingsView : StackPanel
             _current.Children.Add(empty);
             return;
         }
+        var circle = _module.CircleItem;
         for (int i = 0; i < _module.Items.Count; i++)
         {
             var item = _module.Items[i];
-            var row = Row(item.Icon, item.Name, item.Detail);
+            bool isCircle = ReferenceEquals(item, circle);
+            var row = Row(item.Icon, item.Name, isCircle ? $"小圓 · {item.Detail}" : item.Detail);
             var actions = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
+            var star = IconButton(isCircle ? "" : "", isCircle ? "目前的小圓" : "設為小圓", true, () => _module.SetCircle(item));
+            if (isCircle) star.SetResourceReference(Control.ForegroundProperty, IslandTheme.Accent);
+            actions.Children.Add(star);
             actions.Children.Add(IconButton("\uE70E", "往前", i > 0, () => _module.Move(item, -1)));
             actions.Children.Add(IconButton("\uE70D", "往後", i < _module.Items.Count - 1, () => _module.Move(item, +1)));
             actions.Children.Add(IconButton("\uE711", "移除", true, () => _module.Remove(item)));

@@ -1,0 +1,47 @@
+using Island.Core;
+using Island.Modules.Links;
+
+namespace Island.Tests;
+
+/// <summary>捷徑小圓:代表哪一個捷徑、換成別的、重新啟動後保留。</summary>
+public sealed class LinksCircleTests : IDisposable
+{
+    private readonly FakeHost _host = new();
+
+    private LinksModule NewLinks()
+    {
+        var m = new LinksModule();
+        m.Initialize(_host);
+        return m;
+    }
+
+    [Fact]
+    public void NoLinks_NoCircle()
+    {
+        var links = NewLinks();
+        Assert.Null(links.CircleItem);
+        Assert.False(links.IsCompactRelevant);
+        Assert.True(((IIslandCompact)links).ShowWithoutActivity);
+    }
+
+    [Fact]
+    public void DefaultsToFirst_ThenFollowsStar_AndPersists()
+    {
+        var links = NewLinks();
+        var a = links.AddUrl("https://a.example.com")!;
+        var b = links.AddUrl("https://b.example.com")!;
+        Assert.Same(a, links.CircleItem);           // 沒標星號 → 第一個
+
+        links.SetCircle(b);
+        Assert.Same(b, links.CircleItem);
+        Assert.Single(links.Items, i => i.Circle);
+
+        var again = NewLinks();                     // 重新啟動
+        Assert.Equal(b.Target, again.CircleItem?.Target);
+
+        again.Remove(again.CircleItem!);            // 移除小圓的捷徑 → 回到第一個
+        Assert.Equal(a.Target, again.CircleItem?.Target);
+    }
+
+    public void Dispose() => _host.Dispose();
+}

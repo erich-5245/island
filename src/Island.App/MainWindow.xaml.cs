@@ -1011,8 +1011,15 @@ public partial class MainWindow : Window, IShellController
 
     private void OnCircleClick(object sender, MouseButtonEventArgs e)
     {
-        if (sender is Border { Tag: IIslandModule module }) ToExpanded(module, pin: true);
         e.Handled = true;
+        if (sender is not Border { Tag: IIslandModule module }) return;
+        bool handled = false;
+        if (module is IIslandCompact compact)
+        {
+            try { handled = compact.OnCompactClick(); }
+            catch (Exception ex) { Log.Write($"模組 {module.Id} 小圓點擊失敗:{ex.Message}"); }
+        }
+        if (!handled) ToExpanded(module, pin: true);
     }
 
     // ── 拖放:交給第一個願意接收的模組 ───────────────────

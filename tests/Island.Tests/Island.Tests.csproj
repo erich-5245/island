@@ -27,6 +27,7 @@
     <ProjectReference Include="..\..\src\Modules\Island.Modules.Weather\Island.Modules.Weather.csproj" />
     <ProjectReference Include="..\..\src\Modules\Island.Modules.Timer\Island.Modules.Timer.csproj" />
     <ProjectReference Include="..\..\src\Modules\Island.Modules.Media\Island.Modules.Media.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Island.Modules.Links\Island.Modules.Links.csproj" />
   </ItemGroup>
 
 </Project>

@@ -18,6 +18,8 @@ public sealed class LinkItem
     public string Name { get; set; } = "";
     public string Target { get; set; } = "";
     public string? Exe { get; set; }
+    /// <summary>這個捷徑是滑鼠移到島上時顯示的小圓(只會有一個)。</summary>
+    public bool Circle { get; set; }
 
     [System.Text.Json.Serialization.JsonIgnore]
     public ImageSource? Icon { get; set; }
@@ -60,11 +62,32 @@ public sealed class LinksModule : IslandModuleBase, IIslandDropTarget, IIslandSe
     public override FrameworkElement CreateExpandedView() => _view ??= new LinksView(this);
     public FrameworkElement CreateSettingsView() => new LinksSettingsView(this);
 
-    // ── 小圓:滑鼠移到島上時固定顯示的捷徑入口,點一下打開捷徑分頁 ──
+    // ── 小圓:代表「一個」捷徑,點一下直接切到 / 打開它;其他捷徑還是展開島在捷徑分頁點 ──
     private LinksCompactView? _compact;
-    public bool IsCompactRelevant => Items.Count > 0;
+
+    /// <summary>小圓代表的捷徑:設定裡標了星號的那個;都沒標就用第一個。</summary>
+    public LinkItem? CircleItem => Items.FirstOrDefault(i => i.Circle) ?? Items.FirstOrDefault();
+
+    public bool IsCompactRelevant => CircleItem is not null;
     public bool ShowWithoutActivity => true;
     public FrameworkElement CreateCompactView() => _compact ??= new LinksCompactView(this);
+
+    public bool OnCompactClick()
+    {
+        if (CircleItem is { } item) Open(item);
+        return true;
+    }
+
+    public void SetCircle(LinkItem item)
+    {
+        foreach (var i in Items) i.Circle = ReferenceEquals(i, item);
+        Save();
+        _compact?.Rebuild();
+        CircleChanged?.Invoke(this, EventArgs.Empty);
+    }
+
+    /// <summary>小圓改成別的捷徑(設定頁用來更新星號)。</summary>
+    public event EventHandler? CircleChanged;
 
     // ── 開啟 / 切換 ─────────────────────────────────────
 

@@ -22,4 +22,10 @@ public interface IIslandCompact
     /// 預設 false:一般模組只在中間有活動時才放進小圓。
     /// </summary>
     bool ShowWithoutActivity => false;
+
+    /// <summary>
+    /// 小圓被點擊。回傳 true = 模組自己處理了(例如捷徑小圓直接切到視窗),外殼不展開;
+    /// 預設 false:外殼展開並打開這個模組的分頁。
+    /// </summary>
+    bool OnCompactClick() => false;
 }
