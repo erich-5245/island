@@ -83,3 +83,7 @@ powershell -ExecutionPolicy Bypass -File tools\build-installer.ps1
 ```
 
 輸出在 `artifacts\Island-Setup-<版本>.exe`。
+
+## 授權
+
+[MIT](LICENSE)
