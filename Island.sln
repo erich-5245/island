@@ -37,6 +37,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Island.Tests", "tests\Islan
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Island.Modules.SysMon", "src\Modules\Island.Modules.SysMon\Island.Modules.SysMon.csproj", "{691AF1D5-5D04-4A46-BCAA-77482E3EFD45}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Island.Modules.Todo", "src\Modules\Island.Modules.Todo\Island.Modules.Todo.csproj", "{F1E16D5B-BD26-4F2E-9C0C-AAA99AED8222}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -215,6 +217,18 @@ Global
 		{691AF1D5-5D04-4A46-BCAA-77482E3EFD45}.Release|x64.Build.0 = Release|Any CPU
 		{691AF1D5-5D04-4A46-BCAA-77482E3EFD45}.Release|x86.ActiveCfg = Release|Any CPU
 		{691AF1D5-5D04-4A46-BCAA-77482E3EFD45}.Release|x86.Build.0 = Release|Any CPU
+		{F1E16D5B-BD26-4F2E-9C0C-AAA99AED8222}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{F1E16D5B-BD26-4F2E-9C0C-AAA99AED8222}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{F1E16D5B-BD26-4F2E-9C0C-AAA99AED8222}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{F1E16D5B-BD26-4F2E-9C0C-AAA99AED8222}.Debug|x64.Build.0 = Debug|Any CPU
+		{F1E16D5B-BD26-4F2E-9C0C-AAA99AED8222}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{F1E16D5B-BD26-4F2E-9C0C-AAA99AED8222}.Debug|x86.Build.0 = Debug|Any CPU
+		{F1E16D5B-BD26-4F2E-9C0C-AAA99AED8222}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{F1E16D5B-BD26-4F2E-9C0C-AAA99AED8222}.Release|Any CPU.Build.0 = Release|Any CPU
+		{F1E16D5B-BD26-4F2E-9C0C-AAA99AED8222}.Release|x64.ActiveCfg = Release|Any CPU
+		{F1E16D5B-BD26-4F2E-9C0C-AAA99AED8222}.Release|x64.Build.0 = Release|Any CPU
+		{F1E16D5B-BD26-4F2E-9C0C-AAA99AED8222}.Release|x86.ActiveCfg = Release|Any CPU
+		{F1E16D5B-BD26-4F2E-9C0C-AAA99AED8222}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -234,5 +248,6 @@ Global
 		{794CCD57-94C2-421A-A18A-127170037675} = {CA253913-39DE-BFD0-C9A3-4B7EC6FBDF17}
 		{999FD070-9AE1-4BFA-8DDF-BC1245BC9268} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
 		{691AF1D5-5D04-4A46-BCAA-77482E3EFD45} = {CA253913-39DE-BFD0-C9A3-4B7EC6FBDF17}
+		{F1E16D5B-BD26-4F2E-9C0C-AAA99AED8222} = {CA253913-39DE-BFD0-C9A3-4B7EC6FBDF17}
 	EndGlobalSection
 EndGlobal
