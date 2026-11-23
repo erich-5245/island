@@ -101,6 +101,13 @@ public partial class SettingsWindow : Window
             _settings.HideWhenIdle, on => { _settings.HideWhenIdle = on; Save(); _main.ApplySettingsLive(); }));
         p.Children.Add(ToggleCard("隱藏時顯示小瀏海", "島隱藏時,螢幕上緣中間留一小段黑色的瀏海,提醒滑鼠往哪裡推。",
             _settings.ShowNotch, on => { _settings.ShowNotch = on; Save(); _main.ApplySettingsLive(); }));
+        p.Children.Add(StartButtonCard());
+        p.Children.Add(ToggleCard("自動隱藏 Windows 工具列", "和 Windows 設定裡的「自動隱藏工作列」是同一個設定。打開後螢幕下方是空的,滑鼠碰到螢幕下緣工具列還是會出來。關掉 Island 不會自動改回來。",
+            SafeAutoHide(), on =>
+            {
+                try { Taskbar.SetAutoHide(on); Log.Write($"工具列自動隱藏:{on}"); }
+                catch (Exception ex) { Log.Write($"設定工具列自動隱藏失敗:{ex.Message}"); }
+            }));
         p.Children.Add(ToggleCard("全螢幕時隱藏", "看影片、玩遊戲、簡報全螢幕時自動隱藏。",
             _settings.HideInFullscreen, on => { _settings.HideInFullscreen = on; Save(); _main.ApplySettingsLive(); }));
         p.Children.Add(ToggleCard("切歌時顯示", "換歌時膠囊出現約 3 秒,顯示封面和歌名。",
@@ -385,6 +392,36 @@ public partial class SettingsWindow : Window
     }
 
     /// <summary>快捷鍵:點一下輸入框後直接按下想要的組合(至少一個 Ctrl / Alt / Shift / Win)。</summary>
+    private static bool SafeAutoHide()
+    {
+        try { return Taskbar.IsAutoHide; } catch { return false; }
+    }
+
+    private Border StartButtonCard()
+    {
+        var combo = new ComboBox { Width = 170, VerticalAlignment = VerticalAlignment.Center };
+        foreach (var (place, label) in new[]
+        {
+            (StartButtonPlace.Row, "一排的左邊"),
+            (StartButtonPlace.Strip, "小圓延伸列"),
+            (StartButtonPlace.Tabs, "展開分頁列"),
+            (StartButtonPlace.Off, "不顯示"),
+        })
+        {
+            var item = new ComboBoxItem { Content = label, Tag = place };
+            combo.Items.Add(item);
+            if (place == _settings.StartButton) combo.SelectedItem = item;
+        }
+        combo.SelectionChanged += (_, _) =>
+        {
+            if (combo.SelectedItem is not ComboBoxItem { Tag: StartButtonPlace place }) return;
+            _settings.StartButton = place;
+            Save();
+            _main.ApplySettingsLive();
+        };
+        return Card("「開始」按鈕", "點一下打開 Windows 開始功能表(和按 Windows 鍵一樣)。一排的左邊 = 滑鼠推上去就在日期前面;小圓延伸列 = 開著的視窗後面;展開分頁列 = 齒輪旁邊。", combo);
+    }
+
     private Border HotkeyCard()
     {
         var box = new TextBox

@@ -37,6 +37,9 @@ internal sealed class IslandSettings
     /// <summary>隱藏時在螢幕上緣中間顯示一小段「瀏海」,提醒滑鼠往哪裡推。</summary>
     public bool ShowNotch { get; set; }
 
+    /// <summary>「開始」按鈕放哪裡。</summary>
+    public StartButtonPlace StartButton { get; set; } = StartButtonPlace.Row;
+
     /// <summary>
     /// true = 換歌時膠囊短暫出現(約 3 秒)顯示封面 + 歌名,之後再隱藏。
     /// 右鍵選單「切歌時顯示」可切換。
@@ -161,3 +164,6 @@ internal sealed class IslandSettings
         }
     }
 }
+
+/// <summary>「開始」按鈕的位置:一排的左邊(日期前面)、小圓延伸列的最後、展開後分頁列(齒輪旁)、不顯示。</summary>
+public enum StartButtonPlace { Row, Strip, Tabs, Off }

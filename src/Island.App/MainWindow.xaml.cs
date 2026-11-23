@@ -93,6 +93,7 @@ public partial class MainWindow : Window, IShellController
 
         IslandRow.RenderTransform = _slide;   // 隱藏 / 出現:整列往上滑出螢幕、從上方滑下來
         ApplyLayout();
+        ApplyStartButton();
         Capsule.Width = _collapsedSize.Width;
         Capsule.Height = _collapsedSize.Height;
         Capsule.CornerRadius = new CornerRadius(CollapsedRadius);
@@ -381,6 +382,7 @@ public partial class MainWindow : Window, IShellController
 
         // 只有一個模組有展開畫面時不需要分頁
         TabStrip.Visibility = _tabs.Count >= 2 ? Visibility.Visible : Visibility.Collapsed;
+        Dispatcher.BeginInvoke(UpdateTabRow, DispatcherPriority.Loaded);
     }
 
     private void SwitchTo(IIslandModule module)
@@ -391,7 +393,11 @@ public partial class MainWindow : Window, IShellController
         if (IsExpanded) NotifyExpand(_active, false);
         _active = module;
         ExpandedSlot.Content = view;
-        if (_tabs.TryGetValue(module, out var tab) && tab.IsChecked != true) tab.IsChecked = true;
+        if (_tabs.TryGetValue(module, out var tab))
+        {
+            if (tab.IsChecked != true) tab.IsChecked = true;
+            tab.BringIntoView();   // 分頁太多被捲到外面時,捲回看得到
+        }
         if (IsExpanded) NotifyExpand(module, true);
     }
 
@@ -1167,6 +1173,7 @@ public partial class MainWindow : Window, IShellController
         bool left = ReferenceEquals(circle, LeftCircle);
         var strip = SafeCreate(at.Module, () => owner.OpenStrip(at.Index, left, _collapsedSize.Height - 2));
         if (strip is null) return;
+        if (_settings.StartButton == StartButtonPlace.Strip) strip = WithStartButton(strip, left);
         var (host, slot) = StripParts(circle);
         _stripCircle = circle;
         _strip = strip;
@@ -1491,6 +1498,101 @@ public partial class MainWindow : Window, IShellController
     }
 
     /// <summary>展開畫面右下角的齒輪:打開設定,島收起來。</summary>
+    // ── 開始按鈕 ─────────────────────────────────────────
+
+    private void ApplyStartButton()
+    {
+        PeekStartButton.Visibility = _settings.StartButton == StartButtonPlace.Row ? Visibility.Visible : Visibility.Collapsed;
+        TabStartButton.Visibility = _settings.StartButton == StartButtonPlace.Tabs ? Visibility.Visible : Visibility.Collapsed;
+        if (_expandedViewsBuilt) Dispatcher.BeginInvoke(UpdateTabRow, DispatcherPriority.Loaded);
+    }
+
+    /// <summary>延伸列最後加一個分隔線 + 開始按鈕(往左長時放最前面)。</summary>
+    private FrameworkElement WithStartButton(FrameworkElement strip, bool towardLeft)
+    {
+        var button = new Button
+        {
+            Style = (Style)FindResource("IconButton"),
+            ContentTemplate = (DataTemplate)FindResource("StartGlyph"),
+            Content = "",
+            ToolTip = "開始",
+            Margin = towardLeft ? new Thickness(8, 0, 0, 0) : new Thickness(0, 0, 8, 0),
+        };
+        button.Click += OnStartClick;
+        var sep = new Border { Width = 1, Height = (_collapsedSize.Height - 2) * 0.5, Margin = new Thickness(2, 0, 6, 0), Background = new SolidColorBrush(Color.FromArgb(0x50, 0xFF, 0xFF, 0xFF)), VerticalAlignment = VerticalAlignment.Center };
+        var panel = new StackPanel { Orientation = Orientation.Horizontal, Height = _collapsedSize.Height - 2 };
+        if (towardLeft)
+        {
+            sep.Margin = new Thickness(6, 0, 2, 0);
+            panel.Children.Add(button);
+            panel.Children.Add(sep);
+            panel.Children.Add(strip);
+        }
+        else
+        {
+            panel.Children.Add(strip);
+            panel.Children.Add(sep);
+            panel.Children.Add(button);
+        }
+        return panel;
+    }
+
+    private void OnStartClick(object sender, RoutedEventArgs e)
+    {
+        e.Handled = true;
+        // 一排左邊的按鈕跟著日期淡出(例如正在播放時看不見):當成點膠囊
+        if (ReferenceEquals(sender, PeekStartButton) && LeftSlot.Opacity < 0.5)
+        {
+            ToExpanded(CurrentActivity, pin: true);
+            return;
+        }
+        try { Taskbar.OpenStart(); }
+        catch (Exception ex) { Log.Write($"打開開始功能表失敗:{ex.Message}"); }
+        CloseStrip();
+        if (IsExpanded) CollapseExpanded(force: true);
+    }
+
+    // ── 分頁那一排 ───────────────────────────────────────
+
+    private void OnTabWheel(object sender, MouseWheelEventArgs e)
+    {
+        if (TabScroller.ExtentWidth <= TabScroller.ViewportWidth + 1) return;
+        TabScroller.ScrollToHorizontalOffset(TabScroller.HorizontalOffset - e.Delta * 0.5);
+        e.Handled = true;
+    }
+
+    private void OnTabScrollChanged(object sender, ScrollChangedEventArgs e) => UpdateTabRow();
+
+    private void OnTabRowSizeChanged(object sender, SizeChangedEventArgs e) => UpdateTabRow();
+
+    /// <summary>
+    /// 分頁放得下:左邊留和右邊圖示一樣寬的空白,分頁在整個面板置中;
+    /// 放不下:不留白、可以左右捲,被切到的那一邊淡出提示還有東西。
+    /// </summary>
+    private void UpdateTabRow()
+    {
+        double tools = TabTools.ActualWidth + TabTools.Margin.Left;
+        double tabs = TabScroller.ExtentWidth;   // 分頁本身的寬度(捲動範圍)
+        double balance = tabs <= TabRow.ActualWidth - 2 * tools ? tools : 0;
+        if (Math.Abs(TabBalance.Width.Value - balance) > 0.5) TabBalance.Width = new GridLength(balance);
+
+        double hidden = TabScroller.ExtentWidth - TabScroller.ViewportWidth;
+        if (hidden <= 1)
+        {
+            TabScroller.OpacityMask = null;
+            return;
+        }
+        byte left = TabScroller.HorizontalOffset > 1 ? (byte)0 : (byte)255;
+        byte right = TabScroller.HorizontalOffset < hidden - 1 ? (byte)0 : (byte)255;
+        var mask = new LinearGradientBrush { StartPoint = new Point(0, 0), EndPoint = new Point(1, 0) };
+        mask.GradientStops.Add(new GradientStop(Color.FromArgb(left, 0, 0, 0), 0));
+        mask.GradientStops.Add(new GradientStop(Colors.Black, 0.1));
+        mask.GradientStops.Add(new GradientStop(Colors.Black, 0.9));
+        mask.GradientStops.Add(new GradientStop(Color.FromArgb(right, 0, 0, 0), 1));
+        mask.Freeze();
+        TabScroller.OpacityMask = mask;
+    }
+
     private void OnSettingsButtonClick(object sender, RoutedEventArgs e)
     {
         e.Handled = true;
@@ -1513,6 +1615,7 @@ public partial class MainWindow : Window, IShellController
             });
         UseBigWindow(_bigWindow, force: true);
         UpdateNotch();
+        ApplyStartButton();
         ApplyIdleMode();
         if (_settings.HideInFullscreen) _fullscreen?.Evaluate();
         else if (!IsVisible) OnFullscreenChanged(false);

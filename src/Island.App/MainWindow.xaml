@@ -25,8 +25,8 @@
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="RadioButton">
-                        <Border x:Name="Bg" CornerRadius="9" Padding="9,2" Background="Transparent">
-                            <ContentPresenter />
+                        <Border x:Name="Bg" CornerRadius="12" Height="24" Padding="10,0" Background="Transparent">
+                            <ContentPresenter VerticalAlignment="Center" />
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsChecked" Value="True">
@@ -41,6 +41,35 @@
                 </Setter.Value>
             </Setter>
         </Style>
+
+        <!-- 圓形小圖示按鈕(設定齒輪、開始):和分頁一樣高,垂直置中對齊 -->
+        <Style x:Key="IconButton" TargetType="Button">
+            <Setter Property="Foreground" Value="#8A8A8A" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Focusable" Value="False" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Bg" Width="24" Height="24" CornerRadius="12" Background="Transparent">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bg" Property="Background" Value="#2A2A2A" />
+                                <Setter Property="Foreground" Value="White" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Windows 標誌(四個小方塊),顏色跟著按鈕的前景 -->
+        <DataTemplate x:Key="StartGlyph">
+            <Path Data="M0,0 H5 V5 H0 Z M6,0 H11 V5 H6 Z M0,6 H5 V11 H0 Z M6,6 H11 V11 H6 Z"
+                  Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" />
+        </DataTemplate>
     </Window.Resources>
 
     <!--
@@ -122,8 +151,15 @@
                     </Grid.ColumnDefinitions>
 
                     <!-- 左側只在滑鼠移過去(預覽)時淡入,例如日期 -->
-                    <ContentControl x:Name="LeftSlot" Grid.Column="0" Opacity="0" ClipToBounds="True"
-                                    HorizontalAlignment="Left" VerticalAlignment="Center" Focusable="False" />
+                    <StackPanel Grid.Column="0" Orientation="Horizontal" HorizontalAlignment="Left" VerticalAlignment="Center">
+                        <!-- 開始(設定選「一排的左邊」時):和日期一起淡入淡出 -->
+                        <Button x:Name="PeekStartButton" Style="{StaticResource IconButton}" ToolTip="開始"
+                                ContentTemplate="{StaticResource StartGlyph}" Content="" Margin="-6,0,4,0"
+                                Visibility="Collapsed" Click="OnStartClick"
+                                Opacity="{Binding Opacity, ElementName=LeftSlot}" />
+                        <ContentControl x:Name="LeftSlot" Opacity="0" ClipToBounds="True"
+                                        VerticalAlignment="Center" Focusable="False" />
+                    </StackPanel>
 
                     <ContentControl x:Name="CenterSlot" Grid.Column="1"
                                     HorizontalAlignment="Center" VerticalAlignment="Center" Focusable="False" />
@@ -150,35 +186,38 @@
                         <RowDefinition Height="*" />
                     </Grid.RowDefinitions>
 
-                    <StackPanel x:Name="TabStrip" Grid.Row="0"
-                                Orientation="Horizontal" HorizontalAlignment="Center"
-                                Margin="0,8,0,0" />
+                    <!--
+                      分頁那一排:[左邊留白(和右邊工具一樣寬,分頁才會置中)] [分頁(放不下時可用滾輪左右捲)] [開始 / 設定]
+                      分頁和圖示按鈕都是 24 高、垂直置中,所以會對齊。
+                    -->
+                    <Grid x:Name="TabRow" Grid.Row="0" Margin="10,8,10,0" Height="24">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition x:Name="TabBalance" Width="0" />
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <ScrollViewer x:Name="TabScroller" Grid.Column="1" Focusable="False"
+                                      HorizontalScrollBarVisibility="Hidden" VerticalScrollBarVisibility="Disabled"
+                                      PreviewMouseWheel="OnTabWheel" ScrollChanged="OnTabScrollChanged">
+                            <StackPanel x:Name="TabStrip" Orientation="Horizontal"
+                                        HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </ScrollViewer>
+                        <StackPanel x:Name="TabTools" Grid.Column="2" Orientation="Horizontal" Margin="8,0,0,0"
+                                    VerticalAlignment="Center" SizeChanged="OnTabRowSizeChanged">
+                            <Button x:Name="TabStartButton" Style="{StaticResource IconButton}" ToolTip="開始"
+                                    ContentTemplate="{StaticResource StartGlyph}" Content="" Margin="0,0,2,0"
+                                    Visibility="Collapsed" Click="OnStartClick" />
+                            <!-- 設定,不用再按右鍵選單 -->
+                            <Button x:Name="SettingsButton" Style="{StaticResource IconButton}" ToolTip="設定"
+                                    Click="OnSettingsButtonClick">
+                                <TextBlock Text="&#xE713;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="12" />
+                            </Button>
+                        </StackPanel>
+                    </Grid>
 
                     <ContentControl x:Name="ExpandedSlot" Grid.Row="1"
                                     Margin="12,6,12,10" Focusable="False" />
 
-                    <!-- 右上角(分頁那一排):設定,不用再按右鍵選單 -->
-                    <Button x:Name="SettingsButton" Grid.Row="0"
-                            HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,8,10,0"
-                            ToolTip="設定" Cursor="Hand" Focusable="False"
-                            Click="OnSettingsButtonClick">
-                        <Button.Template>
-                            <ControlTemplate TargetType="Button">
-                                <Border x:Name="Bg" Width="22" Height="22" CornerRadius="11" Background="Transparent">
-                                    <TextBlock x:Name="Glyph" Text="&#xE713;"
-                                               FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="11"
-                                               Foreground="#7A7A7A"
-                                               HorizontalAlignment="Center" VerticalAlignment="Center" />
-                                </Border>
-                                <ControlTemplate.Triggers>
-                                    <Trigger Property="IsMouseOver" Value="True">
-                                        <Setter TargetName="Bg" Property="Background" Value="#2A2A2A" />
-                                        <Setter TargetName="Glyph" Property="Foreground" Value="White" />
-                                    </Trigger>
-                                </ControlTemplate.Triggers>
-                            </ControlTemplate>
-                        </Button.Template>
-                    </Button>
                 </Grid>
             </Grid>
         </Border>
