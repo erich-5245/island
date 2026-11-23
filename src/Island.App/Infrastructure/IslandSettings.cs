@@ -116,7 +116,7 @@ internal sealed class IslandSettings
             return new IslandSettings();
         }
 
-        var defaults = new IslandSettings();
+        var defaults = new IslandSettings { IsFirstRun = true };
         defaults.Save();
         return defaults;
     }
@@ -124,6 +124,10 @@ internal sealed class IslandSettings
     /// <summary>修正不合理的尺寸(太小、預覽比收合窄…)。</summary>
     /// <summary>叫出 / 收起島的全域快捷鍵,例如 "Ctrl+Alt+I";空字串 = 停用。</summary>
     public string Hotkey { get; set; } = "Ctrl+Alt+I";
+
+    /// <summary>這次啟動才建立 settings.json(第一次使用):開啟歡迎頁。不寫入檔案。</summary>
+    [JsonIgnore]
+    public bool IsFirstRun { get; private set; }
 
     internal void Normalize()
     {

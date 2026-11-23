@@ -1239,16 +1239,20 @@ public partial class MainWindow : Window, IShellController
 
     private Settings.SettingsWindow? _settingsWindow;
 
-    private void OnSettingsClick(object sender, RoutedEventArgs e)
+    private void OnSettingsClick(object sender, RoutedEventArgs e) => OpenSettings();
+
+    /// <summary>打開設定視窗(已經開著就叫到前面);page = 要直接切到的頁面,例如第一次使用時的「歡迎」。</summary>
+    internal void OpenSettings(string? page = null)
     {
         CloseMenus();
         if (_settingsWindow is { IsLoaded: true })
         {
             if (_settingsWindow.WindowState == WindowState.Minimized) _settingsWindow.WindowState = WindowState.Normal;
+            if (page is not null) _settingsWindow.Navigate(page);
             _settingsWindow.Activate();
             return;
         }
-        _settingsWindow = new Settings.SettingsWindow(_settings, this, _modules);
+        _settingsWindow = new Settings.SettingsWindow(_settings, this, _modules, page);
         _settingsWindow.Closed += (_, _) => _settingsWindow = null;
         _settingsWindow.Show();
         _settingsWindow.Activate();

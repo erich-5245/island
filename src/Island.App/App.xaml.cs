@@ -1,4 +1,4 @@
-﻿using System.Windows;
+using System.Windows;
 using System.Windows.Interop;
 using System.Windows.Media;
 using Island.App.Infrastructure;
@@ -49,6 +49,7 @@ public partial class App : Application
         host.Shell = window;
         MainWindow = window;
         window.Show();
+        if (settings.IsFirstRun) window.OpenSettings("歡迎");   // 第一次使用:歡迎頁(選城市、挑主題)
         Log.Write($"啟動完成:模組 {modulesAt} ms、視窗 {clock.ElapsedMilliseconds} ms");
     }
 

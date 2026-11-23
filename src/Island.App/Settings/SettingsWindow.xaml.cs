@@ -22,13 +22,14 @@ public partial class SettingsWindow : Window
     private readonly IReadOnlyList<IIslandModule> _modules;
     private readonly List<(string Title, Func<UIElement> Build)> _pages = [];
 
-    internal SettingsWindow(IslandSettings settings, MainWindow main, IReadOnlyList<IIslandModule> modules)
+    internal SettingsWindow(IslandSettings settings, MainWindow main, IReadOnlyList<IIslandModule> modules, string? startPage = null)
     {
         _settings = settings;
         _main = main;
         _modules = modules;
         InitializeComponent();
 
+        _pages.Add(("歡迎", BuildWelcome));
         _pages.Add(("一般", BuildGeneral));
         _pages.Add(("外觀與位置", BuildDisplay));
         _pages.Add(("主題", BuildTheme));
@@ -46,7 +47,7 @@ public partial class SettingsWindow : Window
             item.Checked += (_, _) => Show(title);
             Nav.Children.Add(item);
         }
-        ((RadioButton)Nav.Children[1]).IsChecked = true;   // [0] 是標題文字
+        Navigate(startPage ?? "一般");
     }
 
     protected override void OnSourceInitialized(EventArgs e)
@@ -56,6 +57,15 @@ public partial class SettingsWindow : Window
         var hwnd = new WindowInteropHelper(this).Handle;
         int dark = 1;
         DwmSetWindowAttribute(hwnd, 20, ref dark, sizeof(int));
+    }
+
+    /// <summary>切到某一頁(左邊的選單也跟著選起來)。</summary>
+    internal void Navigate(string title)
+    {
+        var item = Nav.Children.OfType<RadioButton>().FirstOrDefault(r => (string)r.Content == title)
+                   ?? Nav.Children.OfType<RadioButton>().First(r => (string)r.Content == "一般");
+        if (item.IsChecked == true) Show((string)item.Content);
+        else item.IsChecked = true;
     }
 
     private void Show(string title)
@@ -96,6 +106,16 @@ public partial class SettingsWindow : Window
         p.Children.Add(ToggleCard("音量亮度提示", "調音量或亮度時顯示長條。",
             _settings.ShowOsd, on => { _settings.ShowOsd = on; Save(); }));
         p.Children.Add(HotkeyCard());
+
+        p.Children.Add(Section("備份與搬家"));
+        var bundleRow = new StackPanel { Orientation = Orientation.Horizontal };
+        var exportAll = new Button { Content = "匯出設定…", Style = (Style)FindResource(IslandTheme.SettingsButton) };
+        exportAll.Click += (_, _) => ExportSettings();
+        var importAll = new Button { Content = "匯入設定…", Margin = new Thickness(8, 0, 0, 0), Style = (Style)FindResource(IslandTheme.SettingsButton) };
+        importAll.Click += (_, _) => ImportSettings();
+        bundleRow.Children.Add(exportAll);
+        bundleRow.Children.Add(importAll);
+        p.Children.Add(Card("匯出 / 匯入設定", "所有設定、主題、捷徑、待辦、各模組選項存成一個檔案,換電腦時匯入就好。不包含 Shelf 清單和私人日曆網址。匯入後 Island 會重新啟動。", bundleRow, stacked: false));
         p.Children.Add(ToggleCard("Ctrl+Alt+1…9 切換捷徑", "不用打開島,按 Ctrl+Alt+數字直接切到第幾個捷徑(順序在設定 →「捷徑」調整)。",
             _settings.NumberHotkeys, on => { _settings.NumberHotkeys = on; Save(); _main.ApplyNumberHotkeys(); }));
         return p;
@@ -270,6 +290,86 @@ public partial class SettingsWindow : Window
             int i = _settings.Modules.FindIndex(x => Same(x, id));
             return i < 0 ? int.MaxValue : i;
         }
+    }
+
+    // ── 歡迎 ────────────────────────────────────────────
+
+    private UIElement BuildWelcome()
+    {
+        var p = new StackPanel();
+        p.Children.Add(Caption("Island 是放在螢幕上緣中間的「動態島」:平常完全隱藏,需要時才出現。三個步驟就能開始用。"));
+        p.Children.Add(new Border { Height = 6 });
+
+        p.Children.Add(Step("1", "叫出島", $"把滑鼠推到螢幕最上緣的正中間,島會滑下來;點一下固定展開,點別的地方收起。也可以按 {(_settings.Hotkey is { Length: > 0 } h ? h : "快捷鍵")}。",
+            "試試看", () => _main.PreviewTheme()));
+        p.Children.Add(Step("2", "選天氣的城市", "天氣、下雨提醒都看這個城市。", "設定天氣 →", () => Navigate("天氣")));
+        p.Children.Add(Step("3", "挑一個主題", "顏色、圓角、字型都可以換,也能存成自己的主題分享給別人。", "挑主題 →", () => Navigate("主題")));
+
+        p.Children.Add(Section("還可以"));
+        p.Children.Add(Caption("· 把檔案、文字、網址、圖片拖到島上暫放(Shelf)\n· 設定 →「捷徑」加常用程式,標星號變成小圓,或按 Ctrl+Alt+1…9\n· 設定 →「模組」打開 行程提醒、剪貼簿紀錄、系統監看\n· 番茄鐘專注時,島只顯示倒數"));
+        var done = new Button { Content = "開始使用", Margin = new Thickness(0, 16, 0, 0), HorizontalAlignment = HorizontalAlignment.Left, Style = (Style)FindResource(IslandTheme.SettingsAccentButton) };
+        done.Click += (_, _) => Close();
+        p.Children.Add(done);
+        return p;
+    }
+
+    private Border Step(string number, string title, string caption, string action, Action click)
+    {
+        var grid = new Grid();
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        var badge = new Border { Width = 26, Height = 26, CornerRadius = new CornerRadius(13), Margin = new Thickness(0, 0, 14, 0), VerticalAlignment = VerticalAlignment.Center };
+        badge.SetResourceReference(Border.BackgroundProperty, IslandTheme.AccentDim);
+        var num = new TextBlock { Text = number, FontWeight = FontWeights.SemiBold, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
+        num.SetResourceReference(TextBlock.ForegroundProperty, IslandTheme.AccentSoft);
+        badge.Child = num;
+        grid.Children.Add(badge);
+        var text = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
+        text.Children.Add(new TextBlock { Text = title, Style = (Style)FindResource(IslandTheme.SettingsTitleText) });
+        text.Children.Add(new TextBlock { Text = caption, Style = (Style)FindResource(IslandTheme.SettingsCaptionText) });
+        Grid.SetColumn(text, 1);
+        grid.Children.Add(text);
+        var button = new Button { Content = action, Margin = new Thickness(16, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center, Style = (Style)FindResource(IslandTheme.SettingsButton) };
+        button.Click += (_, _) => click();
+        Grid.SetColumn(button, 2);
+        grid.Children.Add(button);
+        return new Border { Style = (Style)FindResource(IslandTheme.SettingsCard), Child = grid };
+    }
+
+    // ── 匯出 / 匯入全部設定 ──
+
+    private void ExportSettings()
+    {
+        var dlg = new Microsoft.Win32.SaveFileDialog
+        {
+            Title = "匯出 Island 設定",
+            FileName = $"Island 設定 {DateTime.Now:yyyy-MM-dd}.json",
+            Filter = "Island 設定 (*.json)|*.json",
+        };
+        if (dlg.ShowDialog(this) != true) return;
+        try
+        {
+            _settings.Save();
+            System.IO.File.WriteAllText(dlg.FileName, SettingsBundle.Export(AppPaths.DataDirectory));
+        }
+        catch (Exception ex) { MessageBox.Show(this, $"匯出失敗:{ex.Message}", "Island"); }
+    }
+
+    private void ImportSettings()
+    {
+        var dlg = new Microsoft.Win32.OpenFileDialog { Title = "匯入 Island 設定", Filter = "Island 設定 (*.json)|*.json|所有檔案 (*.*)|*.*" };
+        if (dlg.ShowDialog(this) != true) return;
+        try
+        {
+            if (new System.IO.FileInfo(dlg.FileName).Length > 4 * 1024 * 1024) throw new System.IO.InvalidDataException("檔案太大,不是 Island 的設定檔");
+            int n = SettingsBundle.Import(AppPaths.DataDirectory, System.IO.File.ReadAllText(dlg.FileName));
+            Log.Write($"匯入設定:{n} 個檔案");
+            if (MessageBox.Show(this, $"已匯入 {n} 個設定檔,要現在重新啟動 Island 套用嗎?", "Island", MessageBoxButton.YesNo) == MessageBoxResult.Yes)
+                ((App)Application.Current).Restart();
+        }
+        catch (System.IO.InvalidDataException ex) { MessageBox.Show(this, ex.Message, "Island"); }
+        catch (Exception ex) { MessageBox.Show(this, $"匯入失敗:{ex.Message}", "Island"); }
     }
 
     // ── 共用小工具 ─────────────────────────────────────
