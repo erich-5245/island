@@ -117,6 +117,25 @@ Shelf 收四種項目:
 
 - **右鍵選單**:深灰底(#2C2C2E)+ 細邊框 + 圓角,可勾選的項目是開關,開啟時是強調色;點開關選單不會關閉。Shelf 檔案的右鍵選單也套用同樣樣式。
 
+## 安裝
+
+下載 `Island-Setup-<版本>.exe` 執行即可,不需要另外安裝 .NET,也不需要系統管理員權限:
+
+- 裝到 `%LOCALAPPDATA%\Programs\Island`(只裝給目前的使用者),建立開始功能表捷徑;桌面捷徑和「登入後自動執行」可以在安裝時勾選。
+- 安裝程式沒有數位簽章,第一次執行時 Windows SmartScreen 會跳出「Windows 已保護您的電腦」:按「其他資訊」→「仍要執行」。可以用同名的 `.sha256` 檔核對下載的檔案。
+- 升級:直接執行新版的安裝程式,會自動關掉正在跑的 Island(只關這個安裝資料夾裡的,不碰其他位置的),設定保留。
+- 解除安裝:Windows 設定 →「應用程式」→ Island。會清掉指向這份安裝的開機啟動,並詢問要不要一併刪除設定(`%LOCALAPPDATA%\Island`,預設保留)。
+
+### 產生安裝程式
+
+需要 [Inno Setup 6](https://jrsoftware.org/isinfo.php)(`winget install JRSoftware.InnoSetup --scope user`)。先關掉從這個資料夾執行的 Island,再執行:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File tools\build-installer.ps1
+```
+
+腳本會跑測試 → 發佈自帶 .NET 的 win-x64 版本(不打包成單一檔案,因為模組是執行時掃描 `Island.Modules.*.dll` 載入)→ 用 Island 圖示畫安裝精靈的圖片 → 用 `installer\Island.iss` 編譯,輸出 `artifacts\Island-Setup-<版本>.exe`(約 47 MB)和 `.sha256`。版本號取自 `Directory.Build.props` 的 `<Version>`;`-SkipTests` 可略過測試。精靈跟著 Windows 深色 / 淺色模式,文字是自己翻的繁體中文(Inno Setup 沒有內建)。
+
 ## 需求
 
 - Windows 10/11
