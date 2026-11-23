@@ -145,22 +145,8 @@ public sealed class WeatherModule : IslandModuleBase, IIslandActivity, IIslandEx
     /// <summary>30 分鐘內(接下來兩格 15 分)有降水、而現在沒在下 → 提醒一次;雨停/預報轉晴後重設。</summary>
     private void CheckRain(WeatherSnapshot s)
     {
-        bool rainingNow = s.PrecipitationNow >= RainThreshold || WeatherCodes.IsWet(s.Code);
-        bool rainSoon = s.Next15Min.Skip(1).Take(2).Any(v => v >= RainThreshold);
+        if (!RainAlert.ShouldAlert(s, ref _rainAlerted, RainThreshold)) return;
 
-        if (rainingNow)
-        {
-            _rainAlerted = true;    // 已經在下了,不用再提醒
-            return;
-        }
-        if (!rainSoon)
-        {
-            _rainAlerted = false;   // 預報轉晴,下次再有雨可以重新提醒
-            return;
-        }
-        if (_rainAlerted) return;
-
-        _rainAlerted = true;
         Host.Log("天氣:30 分鐘內可能下雨,提醒");
         _alertView ??= new WeatherAlertView();
         _alertView.Show("30 分鐘內可能下雨", $"{Location.Name} · 記得帶傘");

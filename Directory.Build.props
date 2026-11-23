@@ -10,4 +10,8 @@
     <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
     <Version>0.1.0</Version>
   </PropertyGroup>
+  <!-- 讓 tests\Island.Tests 可以測試 internal 的純邏輯 -->
+  <ItemGroup Condition="'$(MSBuildProjectName)' != 'Island.Tests'">
+    <InternalsVisibleTo Include="Island.Tests" />
+  </ItemGroup>
 </Project>

@@ -7,6 +7,7 @@
     <UserControl.Resources>
         <SolidColorBrush x:Key="Secondary" Color="#9A9A9A" />
         <SolidColorBrush x:Key="TileHover" Color="#1F1F1F" />
+        <BooleanToVisibilityConverter x:Key="BoolToVis" />
 
         <Style x:Key="TextButton" TargetType="Button">
             <Setter Property="Foreground" Value="{StaticResource Secondary}" />
@@ -61,6 +62,9 @@
             </Border>
             <Button DockPanel.Dock="Right" Content="全部清除" Style="{StaticResource TextButton}"
                     Click="OnClearClick" VerticalAlignment="Center" />
+            <Button DockPanel.Dock="Right" Content="貼上" Style="{StaticResource TextButton}"
+                    ToolTip="把剪貼簿的檔案、文字、網址或圖片加進 Shelf"
+                    Click="OnPasteClick" VerticalAlignment="Center" />
         </DockPanel>
 
         <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Hidden" HorizontalScrollBarVisibility="Disabled"
@@ -75,19 +79,27 @@
                     <DataTemplate>
                         <Border Width="68" Height="62" Margin="1" CornerRadius="9" Padding="4,5,4,3"
                                 Style="{StaticResource Tile}"
-                                ToolTip="{Binding Path}"
+                                ToolTip="{Binding Tip}"
                                 MouseLeftButtonDown="OnTileMouseDown">
                             <Border.ContextMenu>
                                 <ContextMenu>
                                     <MenuItem Header="開啟" Click="OnOpenClick" />
-                                    <MenuItem Header="在檔案總管中顯示" Click="OnRevealClick" />
+                                    <MenuItem Header="複製" Click="OnCopyClick" />
+                                    <MenuItem Header="在檔案總管中顯示" Click="OnRevealClick"
+                                              Visibility="{Binding IsFileBased, Converter={StaticResource BoolToVis}}" />
                                     <Separator />
                                     <MenuItem Header="從 Shelf 移除" Click="OnRemoveClick" />
                                 </ContextMenu>
                             </Border.ContextMenu>
                             <StackPanel>
-                                <Image Source="{Binding Icon}" Width="28" Height="28"
-                                       RenderOptions.BitmapScalingMode="HighQuality" />
+                                <Grid Width="28" Height="28">
+                                    <Image Source="{Binding Icon}" Stretch="Uniform"
+                                           Visibility="{Binding HasIcon, Converter={StaticResource BoolToVis}}"
+                                           RenderOptions.BitmapScalingMode="HighQuality" />
+                                    <TextBlock Text="{Binding Glyph}" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets"
+                                               FontSize="20" Foreground="White"
+                                               HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                </Grid>
                                 <TextBlock Text="{Binding Name}" FontSize="10.5" Foreground="White"
                                            TextAlignment="Center" TextTrimming="CharacterEllipsis"
                                            Margin="0,5,0,0" />
@@ -103,8 +115,10 @@
                     HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0,0,0,6">
             <TextBlock Text="&#xE896;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="18"
                        Foreground="{StaticResource Secondary}" HorizontalAlignment="Center" />
-            <TextBlock Text="把檔案拖到這裡暫放" FontSize="12" Foreground="{StaticResource Secondary}"
+            <TextBlock Text="把檔案、文字、網址或圖片拖到這裡暫放" FontSize="12" Foreground="{StaticResource Secondary}"
                        HorizontalAlignment="Center" Margin="0,6,0,0" />
+            <Button Content="貼上剪貼簿" Style="{StaticResource TextButton}" HorizontalAlignment="Center"
+                    Margin="0,4,0,0" Click="OnPasteClick" />
         </StackPanel>
     </Grid>
 </UserControl>

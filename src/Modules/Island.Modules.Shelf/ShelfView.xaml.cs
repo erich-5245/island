@@ -83,5 +83,12 @@ public partial class ShelfView : UserControl
         if (ItemOf(sender) is { } item) _module.Remove(item);
     }
 
+    private void OnCopyClick(object sender, RoutedEventArgs e)
+    {
+        if (ItemOf(sender) is { } item) _module.Copy([item]);
+    }
+
     private void OnClearClick(object sender, RoutedEventArgs e) => _module.Clear();
+
+    private void OnPasteClick(object sender, RoutedEventArgs e) => _module.Paste();
 }

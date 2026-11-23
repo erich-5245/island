@@ -233,21 +233,24 @@ public sealed class TimerModule : IslandModuleBase, IIslandActivity, IIslandExpa
         _doneTimer!.Start();
     }
 
-    private void AdvancePhase()
-    {
-        Phase = Phase == PomodoroPhase.Focus
-            ? (CompletedRounds % RoundsPerLongBreak == 0 ? PomodoroPhase.LongBreak : PomodoroPhase.ShortBreak)
+    private void AdvancePhase() => Phase = NextPhase(Phase, CompletedRounds);
+
+    /// <summary>番茄鐘的下一段:專注 → 休息(每 4 輪一次長休息)→ 專注。completedRounds 是已完成的專注輪數。</summary>
+    internal static PomodoroPhase NextPhase(PomodoroPhase phase, int completedRounds) =>
+        phase == PomodoroPhase.Focus
+            ? (completedRounds > 0 && completedRounds % RoundsPerLongBreak == 0 ? PomodoroPhase.LongBreak : PomodoroPhase.ShortBreak)
             : PomodoroPhase.Focus;
-    }
+
+    internal static TimeSpan LengthOf(PomodoroPhase phase) => phase switch
+    {
+        PomodoroPhase.Focus => FocusLength,
+        PomodoroPhase.ShortBreak => ShortBreakLength,
+        _ => LongBreakLength,
+    };
 
     private void ResetLength()
     {
-        Total = Mode == TimerMode.Countdown ? CountdownLength : Phase switch
-        {
-            PomodoroPhase.Focus => FocusLength,
-            PomodoroPhase.ShortBreak => ShortBreakLength,
-            _ => LongBreakLength,
-        };
+        Total = Mode == TimerMode.Countdown ? CountdownLength : LengthOf(Phase);
         _remainingWhenStopped = Total;
     }
 

@@ -1,0 +1,32 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    自動測試:只測純邏輯(不開視窗、不碰系統設定),幾秒內跑完。
+    執行:dotnet test tests\Island.Tests
+  -->
+  <PropertyGroup>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+    <RootNamespace>Island.Tests</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.12.0" />
+    <PackageReference Include="xunit" Version="2.9.2" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="2.8.2" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="Xunit" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Island.App\Island.App.csproj" />
+    <ProjectReference Include="..\..\src\Island.Core\Island.Core.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Island.Modules.Shelf\Island.Modules.Shelf.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Island.Modules.Weather\Island.Modules.Weather.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Island.Modules.Timer\Island.Modules.Timer.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Island.Modules.Media\Island.Modules.Media.csproj" />
+  </ItemGroup>
+
+</Project>

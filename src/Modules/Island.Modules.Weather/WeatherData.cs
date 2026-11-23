@@ -78,6 +78,34 @@ public sealed record WeatherSnapshot
 }
 
 /// <summary>WMO 天氣代碼 → 文字與單色符號(Segoe UI Symbol 有的字元,WPF 可以正常顯示)。</summary>
+/// <summary>下雨提醒的判斷(純邏輯,方便測試)。</summary>
+internal static class RainAlert
+{
+    /// <summary>
+    /// 現在沒在下、接下來 30 分鐘(兩格 15 分)有降水 → 提醒一次。
+    /// 正在下雨時視為已提醒;預報轉晴後重設,下一場雨可以再提醒。
+    /// </summary>
+    public static bool ShouldAlert(WeatherSnapshot s, ref bool alerted, double threshold = 0.1)
+    {
+        bool rainingNow = s.PrecipitationNow >= threshold || WeatherCodes.IsWet(s.Code);
+        bool rainSoon = s.Next15Min.Skip(1).Take(2).Any(v => v >= threshold);
+
+        if (rainingNow)
+        {
+            alerted = true;    // 已經在下了,不用再提醒
+            return false;
+        }
+        if (!rainSoon)
+        {
+            alerted = false;   // 預報轉晴,下次再有雨可以重新提醒
+            return false;
+        }
+        if (alerted) return false;
+        alerted = true;
+        return true;
+    }
+}
+
 public static class WeatherCodes
 {
     public static string Describe(int code) => code switch

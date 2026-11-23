@@ -26,16 +26,28 @@
 | 按音量鍵 / 調亮度 | 膠囊從上緣出現約 1.5 秒:**喇叭(或太陽)圖示 + 長條 + 數字**,連按會延長、長條即時跟著動;靜音顯示「靜音」。音量是任何方式改變系統音量都會顯示(鍵盤、工作列、其他程式);亮度只支援由 Windows 控制亮度的螢幕(筆電內建螢幕),外接螢幕用自己按鈕調的亮度 Windows 不知道。滑鼠停在島上時也會短暫換成提示。右鍵「音量亮度提示」可關掉。Windows 內建的提示框目前**無法隱藏**(這個 Windows 11 版本的提示框不是獨立視窗,沒有穩定的方法)。 |
 | 播放分頁 | 封面、歌名、歌手、來源(Chrome、Spotify…)、進度條(**點一下跳到那個位置**,來源不支援跳轉時不能點)、上一首/播放暫停/下一首,以及**系統音量**滑桿(可拖曳、點擊跳到該位置、滾輪 ±2;左邊喇叭圖示切換靜音;用鍵盤音量鍵調整時滑桿會跟著動)。沒有播放時顯示「目前沒有正在播放的媒體」。 |
 | 固定展開時點島以外的任何地方 | 收合(回到隱藏)。點島裡面(分頁、檔案)不會收。 |
-| 把檔案拖到螢幕上緣中間或膠囊上 | 自動展開並切到 Shelf,邊框亮起;放開即加入。拖曳造成的展開不固定,滑鼠離開約 0.7 秒後收合。 |
+| 把檔案、文字、網址或圖片拖到螢幕上緣中間或膠囊上 | 自動展開並切到 Shelf,邊框亮起;放開即加入。拖曳造成的展開不固定,滑鼠離開約 0.7 秒後收合。 |
 | Shelf:拖曳某個檔案 | 拖到其他程式。行為和從檔案總管拖曳一樣:同一個磁碟預設是移動,不同磁碟是複製,可按 Ctrl/Shift 切換。檔案被移走後會自動從 Shelf 移除。 |
 | Shelf:拖曳左上角「≡ N 個項目」 | 一次拖出全部 |
-| Shelf:雙擊檔案 | 用預設程式開啟 |
-| Shelf:右鍵檔案 | 開啟/在檔案總管中顯示/從 Shelf 移除 |
-| Shelf:「全部清除」 | 清空清單(不會刪除檔案) |
+| Shelf:雙擊 | 檔案、圖片用預設程式開啟;網址用瀏覽器開啟;文字複製到剪貼簿 |
+| Shelf:右鍵項目 | 開啟/複製/在檔案總管中顯示(檔案、圖片才有)/從 Shelf 移除 |
+| Shelf:「貼上」 | 把剪貼簿的檔案、文字、網址或圖片加進 Shelf(空的時候中間也有「貼上剪貼簿」) |
+| Shelf:「全部清除」 | 清空清單(不會刪除你的檔案;Shelf 自己存的圖片會一起刪掉) |
 | 右鍵膠囊 | 開機時啟動/全螢幕時隱藏/閒置時隱藏/切歌時顯示/音量亮度提示(都是開關)/**設定…**/結束 |
 | 主螢幕上有全螢幕程式 | 膠囊自動隱藏(影片、遊戲、簡報、瀏覽器 F11、無邊框最大化的播放器);離開全螢幕或切到別的視窗就回來。只看膠囊所在的螢幕,另一個螢幕全螢幕不影響。 |
 
-Shelf 只記住檔案**路徑**,不會複製檔案。清單存在 `%LOCALAPPDATA%\Island\modules\shelf\shelf.json`,重新啟動後保留;已經不存在的檔案會在展開時自動移除。收合時膠囊右側顯示「Shelf N」。
+Shelf 收四種項目:
+
+| 種類 | 怎麼來 | 存在哪 | 拖出去 |
+|---|---|---|---|
+| 檔案 / 資料夾 | 從檔案總管、桌面、下載完成、截圖 | 只記**路徑**,不複製檔案 | 和檔案總管一樣(可移動) |
+| 文字 | 從瀏覽器、Word、記事本選取文字拖過來,或複製後按「貼上」 | 存在 shelf.json | 文字(只複製) |
+| 網址 | 拖網址列 / 連結,或單行的 `http(s)://`、`www.`、`mailto:` 文字 | 存在 shelf.json,圖塊顯示網域 | 文字(只複製) |
+| 圖片 | 從瀏覽器拖圖片(虛擬檔案)、複製圖片後按「貼上」 | 存成 `modules\shelf\clips\` 裡的檔案,移除時刪掉 | 檔案(只複製,拖出後仍留在 Shelf);右鍵「複製」會同時放圖片本身,可直接貼到聊天軟體 |
+
+同一次拖曳有多種格式時,依序選 檔案 → 虛擬檔案 → 圖片 → 文字,只加入一份(例如從瀏覽器拖圖片會存圖,不會多一個網址)。重複的項目不會加入。
+
+清單存在 `%LOCALAPPDATA%\Island\modules\shelf\shelf.json`,重新啟動後保留;已經不存在的檔案會在展開時自動移除。收合時膠囊右側顯示「Shelf N」。
 
 ## 圖示
 
@@ -65,6 +77,22 @@ Shelf 只記住檔案**路徑**,不會複製檔案。清單存在 `%LOCALAPPDATA
 dotnet build Island.sln -c Release
 .\src\Island.App\bin\Release\net10.0-windows10.0.19041.0\Island.exe
 ```
+
+### 自動測試
+
+```powershell
+dotnet test tests\Island.Tests
+```
+
+只測純邏輯,不開視窗、不動滑鼠、不碰系統設定,約 1 秒跑完(91 個測試):
+
+| 檔案 | 測什麼 |
+|---|---|
+| `ShelfTests.cs` | 文字 / 網址判斷、標題截斷、FILEGROUPDESCRIPTORW 檔名解析、安全檔名、不重複檔名、shelf.json 新舊格式 |
+| `ShelfModuleTests.cs` | 用假的外殼(`FakeHost`)和假的拖曳資料跑 Shelf:收文字、網址、圖片、瀏覽器虛擬檔案,格式優先順序,移除 / 清除時只刪 Shelf 自己存的檔案,重新啟動後還在 |
+| `LogicTests.cs` | 番茄鐘完整 8 輪(第 4、8 輪後長休息)、時間格式、下雨提醒(只提醒一次、轉晴重設、正在下不提醒)、Open-Meteo JSON 解析、封面取色、快捷鍵解析 / 格式化、設定尺寸修正 |
+
+測試要用到的 `internal` 類別由 `Directory.Build.props` 的 `InternalsVisibleTo` 開放給 `Island.Tests`。下雨提醒和番茄鐘輪替抽成純函式(`RainAlert.ShouldAlert`、`TimerModule.NextPhase`)以便測試,模組行為不變。
 
 **開機時啟動**:右鍵膠囊 → 勾選「開機時啟動」。會寫入 `HKCU\Software\Microsoft\Windows\CurrentVersion\Run\Island`,只影響目前使用者、不需要系統管理員權限,登入後以一般權限啟動。記錄的是「目前這個 Island.exe」的路徑;之後如果改從別的資料夾執行(例如 publish 資料夾),啟動時會自動把路徑更新成新的位置。
 
@@ -214,7 +242,8 @@ src/
     Island.Modules.Shelf/
       ShelfModule.cs             清單、拖入/拖出、保存、Badge
       ShelfView.xaml(.cs)        展開畫面:圖示格狀清單、標題列、空白提示
-      ShelfItem.cs               一個項目(路徑、名稱、圖示)
+      ShelfItem.cs               一個項目(檔案 / 文字 / 網址 / 圖片;名稱、圖示、縮圖)
+      ShelfClips.cs              純邏輯:文字或網址判斷、虛擬檔案檔名、shelf.json 新舊格式
       ScreenshotWatcher.cs       FileSystemWatcher 監看 Known Folder「Screenshots」,只收 20 秒內新建的圖片
       ScreenshotToastView.cs     截圖提示的一排(縮圖)
       ShelfOptions.cs            modules\shelf\options.json(captureScreenshots)
@@ -524,5 +553,5 @@ dotnet-counters monitor -n Island --counters System.Runtime
 1. ~~全螢幕時自動隱藏~~、~~開機自動啟動~~:已完成。
 3. ~~媒體模組~~:已完成。之後可加:點進度條跳轉(`TryChangePlaybackPositionAsync`)、多個來源切換。
 6. ~~UI 設計~~:已完成(封面取色 + 深灰開關選單)。之後可再統一 Shelf / 時間分頁的細節。
-4. **Shelf 進階**:拖入文字/網址/圖片(目前只接收檔案)、多選、較大的縮圖(`IShellItemImageFactory`)、選擇性複製到 Shelf 資料夾。
+4. **Shelf 進階**:~~拖入文字/網址/圖片~~(已完成)、多選、較大的縮圖(`IShellItemImageFactory`)、選擇性複製到 Shelf 資料夾。
 5. **設定畫面**:在右鍵選單加「設定」,選螢幕、開關模組,不用手動改 JSON。
