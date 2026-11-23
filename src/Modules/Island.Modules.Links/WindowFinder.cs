@@ -125,7 +125,26 @@ internal static class WindowFinder
         // 前景鎖定時的常見做法:送一個 Alt 鍵的「按下放開」,系統就允許換前景
         keybd_event(VK_MENU, 0, 0, IntPtr.Zero);
         keybd_event(VK_MENU, 0, KEYEVENTF_KEYUP, IntPtr.Zero);
-        return SetForegroundWindow(hwnd);
+        if (SetForegroundWindow(hwnd)) return true;
+
+        // 還是不行:暫時把輸入佇列接到目前前景視窗的執行緒上(系統就當成同一個程式在換前景)
+        var foreground = GetForegroundWindow();
+        uint me = GetCurrentThreadId();
+        uint fgThread = foreground == IntPtr.Zero ? 0 : GetWindowThreadProcessId(foreground, out _);
+        bool attached = fgThread != 0 && fgThread != me && AttachThreadInput(me, fgThread, true);
+        try
+        {
+            BringWindowToTop(hwnd);
+            if (SetForegroundWindow(hwnd)) return true;
+        }
+        finally
+        {
+            if (attached) AttachThreadInput(me, fgThread, false);
+        }
+
+        // 最後:系統的「切換到這個視窗」(和 Alt+Tab 同一條路)
+        SwitchToThisWindow(hwnd, true);
+        return GetForegroundWindow() == hwnd;
     }
 
     /// <summary>請視窗自己關閉(和按右上角 X 一樣,程式可以問要不要存檔)。</summary>
@@ -166,6 +185,10 @@ internal static class WindowFinder
     private const int ICON_BIG = 1, GCLP_HICON = -14;
     [DllImport("user32.dll")] private static extern bool PostMessage(IntPtr h, uint msg, IntPtr w, IntPtr l);
     [DllImport("user32.dll")] private static extern IntPtr GetForegroundWindow();
+    [DllImport("user32.dll")] private static extern bool AttachThreadInput(uint attach, uint to, bool on);
+    [DllImport("user32.dll")] private static extern bool BringWindowToTop(IntPtr h);
+    [DllImport("user32.dll")] private static extern void SwitchToThisWindow(IntPtr h, bool altTab);
+    [DllImport("kernel32.dll")] private static extern uint GetCurrentThreadId();
     [DllImport("user32.dll")] private static extern IntPtr SendMessageTimeout(IntPtr h, uint msg, IntPtr w, IntPtr l, uint flags, uint timeout, out IntPtr result);
     [DllImport("user32.dll", EntryPoint = "GetClassLongPtrW")] private static extern IntPtr GetClassLongPtr(IntPtr h, int index);
 

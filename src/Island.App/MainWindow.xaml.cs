@@ -1449,8 +1449,9 @@ public partial class MainWindow : Window, IShellController
             _settingsWindow.Activate();
             return;
         }
+        Log.Write($"打開設定視窗{(page is null ? "" : $"({page})")}");
         _settingsWindow = new Settings.SettingsWindow(_settings, this, _modules, page);
-        _settingsWindow.Closed += (_, _) => _settingsWindow = null;
+        _settingsWindow.Closed += (_, _) => { _settingsWindow = null; Log.Write("設定視窗關閉"); };
         _settingsWindow.Show();
         _settingsWindow.Activate();
     }
