@@ -81,3 +81,36 @@ public sealed class ClockStyleTests
         Assert.IsType<SolidColorBrush>(ClockStyle.TextBrush(Colors.Orange, ClockLook.Solid));
     }
 }
+
+/// <summary>選色視窗的 HSV / 色碼換算。</summary>
+public sealed class ColorPickerMathTests
+{
+    [Theory]
+    [InlineData("#FF0000")]
+    [InlineData("#30D158")]
+    [InlineData("#0A84FF")]
+    [InlineData("#808080")]
+    [InlineData("#000000")]
+    [InlineData("#FFFFFF")]
+    public void HsvRoundTrip(string hex)
+    {
+        Assert.True(Island.Core.IslandColorPicker.TryParseHex(hex, out var c));
+        var (h, s, v) = Island.Core.IslandColorPicker.ToHsv(c);
+        Assert.Equal(hex, Island.Core.IslandColorPicker.ToHex(Island.Core.IslandColorPicker.FromHsv(h, s, v)));
+    }
+
+    [Theory]
+    [InlineData("fc0", "#FFCC00")]
+    [InlineData(" #12ab9F ", "#12AB9F")]
+    public void ParsesShortAndLoose(string input, string expected)
+    {
+        Assert.True(Island.Core.IslandColorPicker.TryParseHex(input, out var c));
+        Assert.Equal(expected, Island.Core.IslandColorPicker.ToHex(c));
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("#12345")]
+    [InlineData("zzzzzz")]
+    public void RejectsBad(string input) => Assert.False(Island.Core.IslandColorPicker.TryParseHex(input, out _));
+}

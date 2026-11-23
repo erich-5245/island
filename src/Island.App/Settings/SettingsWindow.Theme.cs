@@ -267,7 +267,7 @@ public partial class SettingsWindow
         pick.Click += (_, _) =>
         {
             ThemeSettings.TryParseColor(get(), out var initial);
-            if (ColorPicker.Pick(this, initial) is { } c) Change(() => set(ThemeSettings.ToHex(c)), rebuild: true);
+            if (IslandColorPicker.Pick(this, initial) is { } c) Change(() => set(ThemeSettings.ToHex(c)), rebuild: true);
         };
         edit.Children.Add(box);
         edit.Children.Add(pick);
