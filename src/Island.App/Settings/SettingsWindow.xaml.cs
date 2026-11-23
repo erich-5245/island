@@ -101,13 +101,7 @@ public partial class SettingsWindow : Window
             _settings.HideWhenIdle, on => { _settings.HideWhenIdle = on; Save(); _main.ApplySettingsLive(); }));
         p.Children.Add(ToggleCard("隱藏時顯示小瀏海", "島隱藏時,螢幕上緣中間留一小段黑色的瀏海,提醒滑鼠往哪裡推。",
             _settings.ShowNotch, on => { _settings.ShowNotch = on; Save(); _main.ApplySettingsLive(); }));
-        p.Children.Add(StartButtonCard());
-        p.Children.Add(ToggleCard("自動隱藏 Windows 工具列", "和 Windows 設定裡的「自動隱藏工作列」是同一個設定。打開後螢幕下方是空的,滑鼠碰到螢幕下緣工具列還是會出來。關掉 Island 不會自動改回來。",
-            SafeAutoHide(), on =>
-            {
-                try { Taskbar.SetAutoHide(on); Log.Write($"工具列自動隱藏:{on}"); }
-                catch (Exception ex) { Log.Write($"設定工具列自動隱藏失敗:{ex.Message}"); }
-            }));
+        p.Children.Add(TaskbarCard());
         p.Children.Add(ToggleCard("全螢幕時隱藏", "看影片、玩遊戲、簡報全螢幕時自動隱藏。",
             _settings.HideInFullscreen, on => { _settings.HideInFullscreen = on; Save(); _main.ApplySettingsLive(); }));
         p.Children.Add(ToggleCard("切歌時顯示", "換歌時膠囊出現約 3 秒,顯示封面和歌名。",
@@ -397,9 +391,50 @@ public partial class SettingsWindow : Window
         try { return Taskbar.IsAutoHide; } catch { return false; }
     }
 
-    private Border StartButtonCard()
+    /// <summary>
+    /// 「工具列」卡片:上面是自動隱藏 Windows 工具列的開關,下面一排選「開始」按鈕放哪裡。
+    /// </summary>
+    private Border TaskbarCard()
     {
-        var combo = new ComboBox { Width = 170, VerticalAlignment = VerticalAlignment.Center };
+        var p = new StackPanel();
+
+        var top = new Grid();
+        top.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        top.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        var text = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
+        text.Children.Add(new TextBlock { Text = "自動隱藏 Windows 工具列", Style = (Style)FindResource(IslandTheme.SettingsTitleText) });
+        text.Children.Add(new TextBlock { Text = "和 Windows 設定裡的「自動隱藏工作列」是同一個開關。打開後螢幕下方是空的,滑鼠碰到螢幕下緣工具列還是會出來。關掉 Island 不會自動改回來。", Style = (Style)FindResource(IslandTheme.SettingsCaptionText) });
+        top.Children.Add(text);
+        var toggle = Toggle(SafeAutoHide(), on =>
+        {
+            try { Taskbar.SetAutoHide(on); Log.Write($"工具列自動隱藏:{on}"); }
+            catch (Exception ex) { Log.Write($"設定工具列自動隱藏失敗:{ex.Message}"); }
+        });
+        toggle.Margin = new Thickness(16, 0, 0, 0);
+        Grid.SetColumn(toggle, 1);
+        top.Children.Add(toggle);
+        p.Children.Add(top);
+
+        p.Children.Add(new TextBlock { Text = "「開始」按鈕", Margin = new Thickness(0, 16, 0, 0), Style = (Style)FindResource(IslandTheme.SettingsTitleText) });
+        p.Children.Add(new TextBlock { Text = "點一下打開 Windows 開始功能表(和按 Windows 鍵一樣)。", Style = (Style)FindResource(IslandTheme.SettingsCaptionText) });
+
+        // 一排四個選項(像 iOS 的分段按鈕)
+        var seg = new StackPanel { Orientation = Orientation.Horizontal };
+        var box = new Border
+        {
+            Background = new SolidColorBrush(Color.FromRgb(0x2C, 0x2C, 0x2E)),
+            CornerRadius = new CornerRadius(9),
+            Padding = new Thickness(3),
+            Margin = new Thickness(0, 10, 0, 0),
+            HorizontalAlignment = HorizontalAlignment.Left,
+            Child = seg,
+        };
+        var buttons = new List<(StartButtonPlace Place, Border Button)>();
+        void Update()
+        {
+            foreach (var (place, b) in buttons)
+                b.Background = place == _settings.StartButton ? new SolidColorBrush(Color.FromRgb(0x48, 0x48, 0x4A)) : Brushes.Transparent;
+        }
         foreach (var (place, label) in new[]
         {
             (StartButtonPlace.Row, "一排的左邊"),
@@ -408,18 +443,29 @@ public partial class SettingsWindow : Window
             (StartButtonPlace.Off, "不顯示"),
         })
         {
-            var item = new ComboBoxItem { Content = label, Tag = place };
-            combo.Items.Add(item);
-            if (place == _settings.StartButton) combo.SelectedItem = item;
+            var b = new Border
+            {
+                CornerRadius = new CornerRadius(7),
+                Padding = new Thickness(14, 6, 14, 6),
+                Cursor = Cursors.Hand,
+                Background = Brushes.Transparent,
+                Child = new TextBlock { Text = label, Foreground = Brushes.White, FontSize = 12.5 },
+            };
+            b.MouseLeftButtonUp += (_, _) =>
+            {
+                if (_settings.StartButton == place) return;
+                _settings.StartButton = place;
+                Save();
+                _main.ApplySettingsLive();
+                Update();
+            };
+            buttons.Add((place, b));
+            seg.Children.Add(b);
         }
-        combo.SelectionChanged += (_, _) =>
-        {
-            if (combo.SelectedItem is not ComboBoxItem { Tag: StartButtonPlace place }) return;
-            _settings.StartButton = place;
-            Save();
-            _main.ApplySettingsLive();
-        };
-        return Card("「開始」按鈕", "點一下打開 Windows 開始功能表(和按 Windows 鍵一樣)。一排的左邊 = 滑鼠推上去就在日期前面;小圓延伸列 = 開著的視窗後面;展開分頁列 = 齒輪旁邊。", combo);
+        Update();
+        p.Children.Add(box);
+
+        return new Border { Style = (Style)FindResource(IslandTheme.SettingsCard), Child = p };
     }
 
     private Border HotkeyCard()
