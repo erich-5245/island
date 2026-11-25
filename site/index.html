@@ -1,0 +1,340 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Island — Windows 上的動態島</title>
+<meta name="description" content="Island：音樂、計時、視窗和各種通知，平常安靜地待在螢幕上方，需要時才浮上來。免費、開源，支援 Windows 10 / 11。">
+<meta name="theme-color" content="#0A1730">
+<link rel="canonical" href="https://erich-5245.github.io/island/">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Island">
+<meta property="og:locale" content="zh_TW">
+<meta property="og:url" content="https://erich-5245.github.io/island/">
+<meta property="og:title" content="Island — Windows 上的動態島">
+<meta property="og:description" content="把桌面上的小事，收進一座島。音樂、計時、視窗和各種通知，需要的時候才浮上來。免費、開源。">
+<meta property="og:image" content="https://erich-5245.github.io/island/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" href="assets/icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&family=Noto+Serif+TC:wght@600;700;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- Shared drawings: a palm (six leaves around a trunk), as on the app icon -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <path id="leaf" d="M0 0 Q15 -7 30 0 Q15 7 0 0Z"/>
+    <g id="palm">
+      <use href="#leaf" fill="#A8854F" transform="rotate(17)"/>
+      <use href="#leaf" fill="#8A6B3D" transform="rotate(77)"/>
+      <use href="#leaf" fill="#A8854F" transform="rotate(137)"/>
+      <use href="#leaf" fill="#8A6B3D" transform="rotate(197)"/>
+      <use href="#leaf" fill="#A8854F" transform="rotate(257)"/>
+      <use href="#leaf" fill="#8A6B3D" transform="rotate(317)"/>
+      <circle r="4" fill="#6E5230"/>
+    </g>
+    <linearGradient id="g-sand" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#E2C79C"/><stop offset="1" stop-color="#C9A774"/></linearGradient>
+    <linearGradient id="g-lagoon" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1C3D66"/><stop offset="1" stop-color="#15304F"/></linearGradient>
+  </defs>
+</svg>
+
+<!-- ───────── Navigation: itself an island ───────── -->
+<nav class="isle" id="isle" aria-label="網站導覽">
+  <button class="isle-head" type="button" aria-expanded="false" aria-controls="isle-links">
+    <img src="assets/icon.png" alt="" width="24" height="24"><span>Island</span>
+  </button>
+  <div class="isle-links" id="isle-links">
+    <a href="#story">功能</a>
+    <a href="#shelf" class="wide-only">Shelf</a>
+    <a href="#custom" class="wide-only">個人化</a>
+    <a href="#faq" class="wide-only">常見問題</a>
+    <a href="https://github.com/erich-5245/island">GitHub</a>
+    <a class="isle-dl" href="#download">下載</a>
+  </div>
+</nav>
+
+<!-- ───────── Hero ───────── -->
+<header class="hero" id="top">
+  <div class="hero-text">
+    <p class="label reveal"><svg class="mini-palm" viewBox="-32 -32 64 64"><use href="#palm"/></svg>Island · 給 Windows 的動態島</p>
+    <h1 class="reveal"><span class="nw">把桌面上的小事，</span><br><span class="nw">收進一座島。</span></h1>
+    <p class="hero-sub reveal">音樂、計時、視窗和各種通知，平常安靜地待在螢幕上方，需要的時候才浮上來。</p>
+    <div class="hero-actions reveal">
+      <a class="btn-sand" href="#download">免費下載</a>
+      <a class="btn-quiet" href="#story">看看它會做什麼 ↓</a>
+    </div>
+    <p class="hero-meta reveal">Windows 10 / 11 · 開源 · MIT 授權</p>
+  </div>
+
+  <div class="hero-art reveal" aria-hidden="true">
+    <svg class="atoll" viewBox="0 0 600 380">
+      <rect class="foam f2" x="36" y="46" width="528" height="288" rx="144"/>
+      <rect class="foam f1" x="58" y="68" width="484" height="244" rx="122"/>
+      <rect class="ripple r1" x="80" y="90" width="440" height="200" rx="100"/>
+      <rect class="ripple r2" x="80" y="90" width="440" height="200" rx="100"/>
+      <rect x="80" y="90" width="440" height="200" rx="100" fill="url(#g-sand)"/>
+      <rect x="110" y="120" width="380" height="140" rx="70" fill="url(#g-lagoon)" stroke="rgba(10,23,48,.4)" stroke-width="2"/>
+      <g class="boat">
+        <line x1="322" y1="190" x2="378" y2="190" stroke="#F3E6CF" stroke-opacity=".45" stroke-width="2.5" stroke-linecap="round"/>
+        <rect x="384" y="183" width="44" height="14" rx="7" fill="#F3E6CF"/>
+      </g>
+      <g transform="translate(142 146)"><g class="sway"><use href="#palm" transform="scale(1.75)"/></g></g>
+      <g transform="translate(190 254)"><g class="sway s2"><use href="#palm" transform="scale(1.1)"/></g></g>
+    </svg>
+  </div>
+</header>
+
+<!-- ───────── Scroll story: one island, many states ───────── -->
+<section class="story" id="story" data-state="0">
+  <div class="stage">
+    <div class="screen">
+      <div class="wallpaper"></div>
+      <svg class="cursor" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 3l14 8-6.5 1.5L9.5 19z"/></svg>
+
+      <div class="island-wrap">
+        <div class="sat sat-left" aria-hidden="true">
+          <svg viewBox="0 0 36 36"><circle class="ring-bg" cx="18" cy="18" r="13"/><circle class="ring" cx="18" cy="18" r="13"/></svg>
+        </div>
+        <div class="sat sat-right" aria-hidden="true">
+          <svg viewBox="0 0 24 24"><path d="M12 4v11m0 0l-4.5-4.5M12 15l4.5-4.5M5 19h14"/></svg>
+        </div>
+
+        <div class="island">
+          <div class="view v-idle">
+            <span id="idle-date">11/26 週四</span>
+            <b id="idle-time">00:17</b>
+            <span class="idle-shelf"><svg viewBox="0 0 24 24"><path d="M4 14h16v5H4zM12 3v8m0 0l-3-3m3 3l3-3"/></svg>2</span>
+          </div>
+
+          <div class="view v-music">
+            <div class="cover"></div>
+            <div class="track">
+              <div class="t-title">夜航</div>
+              <div class="t-artist">示範歌曲 · Island</div>
+              <div class="bar"><span></span></div>
+              <div class="times"><span>1:12</span><span>-2:31</span></div>
+            </div>
+            <div class="controls">
+              <svg viewBox="0 0 24 24"><path d="M6 6v12M19 6l-9 6 9 6z"/></svg>
+              <svg viewBox="0 0 24 24" class="big"><path d="M8 5v14M16 5v14"/></svg>
+              <svg viewBox="0 0 24 24"><path d="M18 6v12M5 6l9 6-9 6z"/></svg>
+            </div>
+          </div>
+
+          <div class="view v-live">
+            <span class="live-label">番茄鐘</span>
+            <span class="live-time">24:59</span>
+          </div>
+
+          <div class="view v-windows">
+            <span class="app a-start"><svg viewBox="0 0 24 24"><path d="M12 3v18M3 12h18M5.6 5.6l12.8 12.8M18.4 5.6L5.6 18.4"/></svg></span>
+            <span class="divider"></span>
+            <span class="app a-1 on"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><path d="M4 12h16M12 4c3 3 3 13 0 16M12 4c-3 3-3 13 0 16"/></svg></span>
+            <span class="app a-2 on"><svg viewBox="0 0 24 24"><path d="M6 8l4 4-4 4M12 16h6"/></svg></span>
+            <span class="app a-3 on"><svg viewBox="0 0 24 24"><path d="M3 7h7l2 2h9v10H3z"/></svg></span>
+            <span class="app a-4 on"><svg viewBox="0 0 24 24"><path d="M4 5h16v11H9l-5 4z"/></svg></span>
+            <span class="app a-5 on"><svg viewBox="0 0 24 24"><path d="M9 18V6l10-2v12M9 18a3 3 0 1 1-3-3 3 3 0 0 1 3 3zm10-2a3 3 0 1 1-3-3 3 3 0 0 1 3 3z"/></svg></span>
+          </div>
+
+          <div class="view v-clock">
+            <div class="tabs">
+              <span class="tab on">時間</span><span class="tab">天氣</span><span class="tab">計時</span><span class="tab">播放</span><span class="tab">Shelf</span><span class="tab">捷徑</span><span class="tab fade">待辦</span>
+              <svg class="gear" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1"/></svg>
+            </div>
+            <div class="clock" id="clock">23:33</div>
+            <div class="date" id="date">11月23日 星期一</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="side">
+      <p class="count"><b id="count">01</b> / 05</p>
+      <div class="captions" aria-live="polite">
+        <div class="cap" data-i="0">
+          <p class="label">平常</p>
+          <h2>不用的時候，<br>它幾乎不存在。</h2>
+          <p>我不想要一個一直在眼前晃的東西。Island 平常收起來，滑鼠碰到螢幕上緣中間才滑下來；看影片、打遊戲、做簡報時，它會自己讓開。</p>
+        </div>
+        <div class="cap" data-i="1">
+          <p class="label">正在播放</p>
+          <h2>聽歌時，<br>不用再切視窗。</h2>
+          <p>封面、歌名、進度條和播放鍵都在上面。換歌時它會冒出來幾秒，顏色也會跟著專輯封面變。</p>
+        </div>
+        <div class="cap" data-i="2">
+          <p class="label">即時狀態</p>
+          <h2>好幾件事同時發生，<br>也一眼看得完。</h2>
+          <p>番茄鐘、檔案下載、麥克風正在被使用⋯⋯它們排成「小圓、長條、小圓」各自顯示，時間到了會主動提醒你。</p>
+        </div>
+        <div class="cap" data-i="3">
+          <p class="label">視窗切換</p>
+          <h2>開著的視窗，<br>從這裡找。</h2>
+          <p>滑鼠在捷徑小圓上停 0.2 秒，旁邊就會展開所有開著的視窗，依程式分好組。點一下切過去，按中鍵直接關掉。</p>
+        </div>
+        <div class="cap" data-i="4">
+          <p class="label">時間</p>
+          <h2>最常看的，<br>其實是時鐘。</h2>
+          <p>字體、粗細和顏色都能換，也可以直接從桌布取色。天氣、計時、Shelf、捷徑、待辦，都在同一排分頁裡。</p>
+        </div>
+      </div>
+      <div class="route" aria-hidden="true">
+        <span class="route-line"></span>
+        <span class="route-boat"><i></i></span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ───────── Shelf ───────── -->
+<section class="feature" id="shelf">
+  <div class="feature-shot reveal"><img src="assets/shelf.png" alt="Shelf 分頁：把檔案、文字、網址或圖片拖到這裡暫放" loading="lazy" width="520" height="232"></div>
+  <div class="feature-text reveal">
+    <p class="label">Shelf</p>
+    <h2>檔案先放這裡，<br>等等再拿。</h2>
+    <p>我自己拖檔案時，常常找不到地方先放下。把檔案、文字、網址或圖片拖到螢幕上緣就能暫放，晚點再拖去要去的地方。截圖和剛下載完的檔案，也會自動放進來。</p>
+  </div>
+</section>
+
+<!-- ───────── Everything else ───────── -->
+<section class="more" id="more">
+  <div class="more-head reveal">
+    <p class="label">還有這些</p>
+    <h2>小事，<br>也都有地方放。</h2>
+  </div>
+  <div class="cards">
+    <div class="card reveal">
+      <svg viewBox="0 0 24 24"><path d="M7 17a4 4 0 0 1-.6-8A6 6 0 0 1 18 9.5 3.5 3.5 0 0 1 17.5 17z"/><path d="M9 20l1-1.5M13 20l1-1.5"/></svg>
+      <h3>天氣與降雨提醒</h3><p>快下雨時先告訴你，出門前不用另外查。</p>
+    </div>
+    <div class="card reveal">
+      <svg viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="15" rx="2"/><path d="M4 10h16M9 3v4M15 3v4"/></svg>
+      <h3>行事曆</h3><p>貼上 iCal 網址，接下來的行程就會出現在島上。</p>
+    </div>
+    <div class="card reveal">
+      <svg viewBox="0 0 24 24"><path d="M5 7l2 2 3-3M5 15l2 2 3-3M13 8h6M13 16h6"/></svg>
+      <h3>待辦</h3><p>隨手記下要做的事，做完勾掉。</p>
+    </div>
+    <div class="card reveal">
+      <svg viewBox="0 0 24 24"><rect x="6" y="4" width="12" height="17" rx="2"/><path d="M9 4h6v3H9zM9 12h6M9 16h4"/></svg>
+      <h3>剪貼簿紀錄</h3><p>剛剛複製過的東西，還找得回來。</p>
+    </div>
+    <div class="card reveal">
+      <svg viewBox="0 0 24 24"><path d="M3 12h4l2-5 4 10 2-5h6"/></svg>
+      <h3>系統監看</h3><p>CPU、記憶體和網路速度，瞄一眼就知道。</p>
+    </div>
+    <div class="card reveal">
+      <svg viewBox="0 0 24 24"><path d="M4 10v4h3l5 4V6L7 10zM16 9a4 4 0 0 1 0 6M19 6a8 8 0 0 1 0 12"/></svg>
+      <h3>音量與亮度提示</h3><p>按音量鍵或調亮度時，從上面滑出一條長條。</p>
+    </div>
+    <div class="card reveal">
+      <svg viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M6 11a6 6 0 0 0 12 0M12 17v4"/></svg>
+      <h3>麥克風與鏡頭提示</h3><p>有程式開始用麥克風或鏡頭，島上會亮起來，告訴你是哪一個。</p>
+    </div>
+    <div class="card reveal">
+      <svg viewBox="0 0 24 24"><rect x="3" y="7" width="16" height="10" rx="2"/><path d="M21 10v4M6 10v4M9 10v4"/></svg>
+      <h3>電量</h3><p>插上或拔掉電源、電量變低時，都會提醒你。</p>
+    </div>
+  </div>
+
+  <div class="keys reveal">
+    <div class="key-row"><span class="kbd">Ctrl</span><span class="kbd">Alt</span><span class="kbd">I</span><span class="key-desc">隨時叫出島</span></div>
+    <div class="key-row"><span class="kbd">Ctrl</span><span class="kbd">Alt</span><span class="kbd">1</span>–<span class="kbd">9</span><span class="key-desc">直接切到第幾個捷徑</span></div>
+    <div class="key-row"><span class="kbd kbd-wide">開始</span><span class="key-desc">「開始」按鈕也可以放在島上</span></div>
+  </div>
+</section>
+
+<!-- ───────── Settings ───────── -->
+<section class="custom" id="custom">
+  <div class="custom-head reveal">
+    <p class="label">個人化</p>
+    <h2>每個人的桌面<br>都不一樣。</h2>
+    <p>8 組主題；強調色可以跟著專輯封面、Windows 主題色或時段變化；膠囊的透明度和圓角也能調。每個模組都能單獨關掉，設定可以匯出，帶到下一台電腦。</p>
+  </div>
+  <img class="custom-shot reveal" src="assets/settings-themes.png" alt="Island 設定視窗：主題頁" loading="lazy">
+</section>
+
+<!-- ───────── Numbers ───────── -->
+<section class="numbers">
+  <div class="numbers-head reveal">
+    <p class="label">效能</p>
+    <h2>輕到你會忘記<br>它還在跑。</h2>
+    <p>隱藏時不做多餘的輪詢，只在事情真的發生時，才被系統叫醒。</p>
+  </div>
+  <div class="stats">
+    <div class="stat reveal"><b>0.05<small>%</small></b><span>閒置時的 CPU（單核）</span></div>
+    <div class="stat reveal"><b>20–45<small>MB</small></b><span>記憶體使用量</span></div>
+    <div class="stat reveal"><b>14</b><span>個模組，各自開關</span></div>
+    <div class="stat reveal"><b>0</b><span>需要的系統管理員權限</span></div>
+  </div>
+</section>
+
+<!-- ───────── FAQ ───────── -->
+<section class="faq" id="faq">
+  <div class="faq-head reveal">
+    <p class="label">常見問題</p>
+    <h2>你可能想問。</h2>
+  </div>
+  <div class="faq-list">
+    <details class="reveal">
+      <summary>會不會拖慢電腦？</summary>
+      <p>幾乎不會。隱藏時 CPU 大約 0.05%（單核），記憶體約 20–45 MB。它不會一直在背景檢查東西，而是等系統通知「有事發生了」才動作。</p>
+    </details>
+    <details class="reveal">
+      <summary>會不會上傳我的資料？</summary>
+      <p>不會。Island 沒有帳號，也不收集任何使用資料。只有兩個功能會連網：天氣（向 Open-Meteo 查詢，只送出你選的城市座標）和行事曆（只讀取你自己貼上的 iCal 網址）。不用這兩個功能，它就完全不連網。程式碼都公開在 GitHub 上，可以自己檢查。</p>
+    </details>
+    <details class="reveal">
+      <summary>看影片、玩遊戲時會跑出來擋畫面嗎？</summary>
+      <p>不會。島所在的螢幕上有全螢幕程式時（影片、遊戲、簡報、瀏覽器按 F11），它會自動隱藏，離開全螢幕就回來。這個行為也可以在右鍵選單裡關掉。</p>
+    </details>
+    <details class="reveal">
+      <summary>我有兩個以上的螢幕，可以用嗎？</summary>
+      <p>可以。島預設跟著 Windows 的主螢幕，也可以在設定裡指定要顯示在哪一個螢幕。視窗切換會列出所有螢幕上的視窗；不同縮放比例的螢幕也會正確對齊。</p>
+    </details>
+    <details class="reveal">
+      <summary>設定和資料存在哪裡？</summary>
+      <p>全部存在 <code>%LOCALAPPDATA%\Island</code>，只屬於目前的使用者。設定也可以在設定視窗裡匯出成檔案，帶到另一台電腦匯入。</p>
+    </details>
+    <details class="reveal">
+      <summary>要怎麼關掉或解除安裝？</summary>
+      <p>想暫時關掉：在島上按右鍵 →「結束」。想解除安裝：Windows 設定 →「應用程式」→ 找到 Island → 解除安裝。解除安裝時會順便移除開機啟動，並先問你要不要一起刪掉設定資料。</p>
+    </details>
+    <details class="reveal">
+      <summary>要錢嗎？</summary>
+      <p>完全免費，而且是開源軟體，以 MIT 授權釋出。</p>
+    </details>
+  </div>
+</section>
+
+<!-- ───────── Download ───────── -->
+<section class="download" id="download">
+  <div class="dl-art reveal" aria-hidden="true">
+    <span class="dl-ring"></span><span class="dl-ring d2"></span>
+    <img src="assets/icon.png" alt="" width="148" height="148">
+  </div>
+  <div class="dl-text reveal">
+    <h2>來島上看看吧。</h2>
+    <p>免費、開源。只安裝給目前的使用者，不需要系統管理員權限，也不用另外裝 .NET。</p>
+    <a class="btn-sand btn-lg" id="dl-btn" href="https://github.com/erich-5245/island/releases/latest">下載 Island</a>
+    <p class="dl-meta"><span id="dl-ver"></span>Windows 10（2004）或 Windows 11 · 64 位元</p>
+    <p class="dl-links"><a id="dl-sha" href="https://github.com/erich-5245/island/releases/latest">SHA-256 核對碼</a> · <a href="https://github.com/erich-5245/island/releases">所有版本與更新紀錄</a></p>
+    <details class="smartscreen">
+      <summary>第一次執行時看到「Windows 已保護您的電腦」？</summary>
+      <p>Island 的安裝程式目前沒有數位簽章，所以 SmartScreen 會攔一下。按「<b>其他資訊</b>」→「<b>仍要執行</b>」即可。想確認檔案沒被改過，可以用 Releases 頁面上的 <code>.sha256</code> 核對。</p>
+    </details>
+  </div>
+</section>
+
+<footer class="footer">
+  <p>Island 是開源專案，以 MIT 授權釋出 · <a href="https://github.com/erich-5245/island">GitHub</a></p>
+  <p class="fine">Island 為獨立專案，與 Apple Inc. 或 Microsoft Corporation 無任何關聯。</p>
+</footer>
+
+<script src="main.js"></script>
+</body>
+</html>
