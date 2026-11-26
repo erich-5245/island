@@ -399,6 +399,9 @@ h1, h2 { margin: 0; font-family: var(--serif); font-weight: 900; color: var(--cr
 .footer { border-top: 1px solid var(--line); padding: 32px 16px 48px; text-align: center; color: var(--muted); font-size: 12px; background: var(--sea-deep); }
 .footer a { color: var(--sand); }
 .footer .fine { margin-top: 8px; opacity: .7; }
+.footer .maker { font-family: var(--serif); font-size: 15px; color: var(--text); margin: 0 0 12px; }
+.footer .maker a { color: var(--cream); text-decoration: none; border-bottom: 1px solid var(--sand-2); padding-bottom: 1px; }
+.footer .maker a:hover { color: var(--sand); }
 
 /* ───────── reveal on scroll ───────── */
 .reveal { opacity: 0; transform: translateY(28px); transition: opacity .9s ease, transform 1s var(--ease); }
